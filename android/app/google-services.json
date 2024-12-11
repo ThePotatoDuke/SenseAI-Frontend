@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "552781609190",
+    "project_id": "senseai-14f18",
+    "storage_bucket": "senseai-14f18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:552781609190:android:8029f0681a49f5ff26a327",
+        "android_client_info": {
+          "package_name": "com.example.senseai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7fMJv0FX9CcYE12lz0_xlU-LWQlRK2k0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
