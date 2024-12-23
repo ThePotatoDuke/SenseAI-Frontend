@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path/path.dart' as p;
 
 import 'dart:convert';
 import 'dart:io';
@@ -12,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import '../../../../global/common/toast.dart';
 
@@ -31,18 +34,121 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final List<types.Message> _messages = [];
   final _user = const types.User(id: '82091008-a484-4a89-ae75-a22bf8d6f3ac');
+  final AudioRecorder audioRecorder = AudioRecorder();
+  bool isRecording = false;
+  bool isPlaying = false;
+  String? recordingPath;
+  final AudioPlayer audioPlayer = AudioPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen for audio playback completion
+    audioPlayer.playerStateStream.listen((playerState) {
+      if (playerState.processingState == ProcessingState.completed) {
+        if (mounted) {
+          setState(() {
+            isPlaying = false; // Reset isPlaying when playback completes
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Dispose audioPlayer to avoid memory leaks
+    audioPlayer.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: Chat(
-          messages: _messages,
-          onAttachmentPressed: _handleAttachmentPressed,
-          onMessageTap: _handleMessageTap,
-          onPreviewDataFetched: _handlePreviewDataFetched,
-          onSendPressed: _handleSendPressed,
-          user: _user,
+        body: Column(
+          children: [
+            Expanded(
+              child: Chat(
+                messages: _messages,
+                onAttachmentPressed: _handleAttachmentPressed,
+                onMessageTap: _handleMessageTap,
+                onPreviewDataFetched: _handlePreviewDataFetched,
+                onSendPressed: _handleSendPressed,
+                user: _user,
+              ),
+            ),
+            _buildUI(),
+          ],
         ),
+        floatingActionButton: _recordingButton(),
       );
+
+  Widget _buildUI() {
+    return SizedBox(
+      width: MediaQuery.sizeOf(context).width,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (recordingPath != null)
+            MaterialButton(
+              onPressed: () async {
+                if (isPlaying) {
+                  if (mounted) {
+                    setState(() {
+                      isPlaying = false;
+                    });
+                  }
+                  await audioPlayer.stop();
+                } else {
+                  await audioPlayer.setFilePath(recordingPath!);
+                  if (mounted) {
+                    setState(() {
+                      isPlaying = true;
+                    });
+                  }
+                  await audioPlayer.play();
+                }
+              },
+              color: Theme.of(context).colorScheme.primary,
+              child: Text(
+                isPlaying ? "Stop Playing" : "Start Playing",
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          if (recordingPath == null) const Text("No recording found"),
+        ],
+      ),
+    );
+  }
+
+  Widget _recordingButton() {
+    return FloatingActionButton(
+        onPressed: () async {
+          if (isRecording) {
+            String? filePath = await audioRecorder.stop();
+            if (filePath != null) {
+              setState(() {
+                isRecording = false;
+                recordingPath = filePath;
+              });
+            }
+          } else {
+            if (await audioRecorder.hasPermission()) {
+              final Directory appDocumentsDir =
+                  await getApplicationDocumentsDirectory();
+              final String filePath =
+                  p.join(appDocumentsDir.path, "recording.wav");
+              await audioRecorder.start(const RecordConfig(), path: filePath);
+              setState(() {
+                isRecording = true;
+                recordingPath = null;
+              });
+            }
+          }
+        },
+        child: Icon(isRecording ? (Icons.stop) : (Icons.mic)));
+  }
 
   void _addMessage(types.Message message) {
     setState(() {
