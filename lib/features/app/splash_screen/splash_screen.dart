@@ -46,11 +46,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _checkAuthentication() async {
     // Delay for a short period to simulate splash screen
-    await Future.delayed(Duration(seconds: 2));
+    await Future.delayed(Duration(seconds: 1));
 
     // Check if a user is logged in
     final user = FirebaseAuth.instance.currentUser;
-
+    Navigator.pushReplacementNamed(context, '/login');
     if (user != null) {
       // Navigate to HomePage if user is logged in
       Navigator.pushReplacementNamed(context, '/home');
