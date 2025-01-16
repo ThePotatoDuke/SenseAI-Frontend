@@ -65,6 +65,10 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: const Text("Chat"),
+          actions: [_recordingButton()],
+        ),
         body: Column(
           children: [
             Expanded(
@@ -80,7 +84,6 @@ class _HomePageState extends State<HomePage> {
             _buildUI(),
           ],
         ),
-        floatingActionButton: _recordingButton(),
       );
 
   Widget _buildUI() {
@@ -123,7 +126,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _recordingButton() {
-    return FloatingActionButton(
+    return IconButton(
         onPressed: () async {
           if (isRecording) {
             String? filePath = await audioRecorder.stop();
@@ -147,7 +150,7 @@ class _HomePageState extends State<HomePage> {
             }
           }
         },
-        child: Icon(isRecording ? (Icons.stop) : (Icons.mic)));
+        icon: Icon(isRecording ? (Icons.stop) : (Icons.mic)));
   }
 
   void _addMessage(types.Message message) {
@@ -156,7 +159,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _handleAttachmentPressed() {
+  void _handleAttachmentPressed() async {
     showModalBottomSheet<void>(
       context: context,
       builder: (BuildContext context) => SafeArea(
@@ -307,6 +310,16 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _addResponse(String responseText) {
+    final textMessage = types.TextMessage(
+      id: randomString(),
+      author: types.User(id: 'bot'), // Use a different user ID for the response
+      text: responseText,
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    _addMessage(textMessage);
+  }
+
   void _handleSendPressed(types.PartialText message) {
     final textMessage = types.TextMessage(
       author: _user,
@@ -316,5 +329,8 @@ class _HomePageState extends State<HomePage> {
     );
 
     _addMessage(textMessage);
+    Future.delayed(const Duration(seconds: 1), () {
+      _addResponse("This is a response to: '${message.text}'");
+    });
   }
 }
