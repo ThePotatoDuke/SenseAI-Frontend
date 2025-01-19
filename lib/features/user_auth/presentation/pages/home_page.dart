@@ -1,4 +1,4 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path/path.dart' as p;
@@ -16,8 +16,6 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
-import '../../../../global/common/toast.dart';
-
 String randomString() {
   final random = Random.secure();
   final values = List<int>.generate(16, (i) => random.nextInt(255));
@@ -31,11 +29,19 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
   final _user = const types.User(id: '82091008-a484-4a89-ae75-a22bf8d6f3ac');
   final AudioRecorder audioRecorder = AudioRecorder();
-  bool isRecording = false;
+  CameraController? controller;
+  List<CameraDescription>? cameras;
+  bool isRecordingAudio = false; // For audio recording
+  bool isRecordingVideo = false; // For video recording
+
+  List<CameraDescription>? _cameras;
+  int _selectedCameraIndex = 0;
+  bool _isInitialized = false;
+
   bool isPlaying = false;
   String? recordingPath;
   final AudioPlayer audioPlayer = AudioPlayer();
@@ -43,6 +49,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initializeCamera();
 
     // Listen for audio playback completion
     audioPlayer.playerStateStream.listen((playerState) {
@@ -60,14 +68,88 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     // Dispose audioPlayer to avoid memory leaks
     audioPlayer.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    controller?.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeCamera() async {
+    // Fetch the available cameras
+    final cameras = await availableCameras();
+    setState(() {
+      _cameras = cameras;
+      controller = CameraController(
+        _cameras![0], // You can change this index for front/back camera
+        ResolutionPreset.high,
+      );
+    });
+
+    // Initialize the controller
+    await controller!.initialize();
+    setState(() {
+      _isInitialized = true;
+    });
+  }
+
+  @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   if (controller == null || !(controller?.value.isInitialized ?? false)) {
+  //     return;
+  //   }
+
+  //   if (state == AppLifecycleState.inactive) {
+  //     controller?.dispose();
+  //   } else if (state == AppLifecycleState.resumed) {
+  //     _initializeCamera();
+  //   }
+  // }
+
+  double _minAvailableZoom = 1.0;
+  double _maxAvailableZoom = 1.0;
+
+  double _currentScale = 1.0;
+  double _baseScale = 1.0;
+  int _pointers = 0;
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    _baseScale = _currentScale;
+  }
+
+  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
+    // When there are not exactly two fingers on screen don't scale
+    if (controller == null || _pointers != 2) {
+      return;
+    }
+
+    _currentScale = (_baseScale * details.scale)
+        .clamp(_minAvailableZoom, _maxAvailableZoom);
+
+    await controller!.setZoomLevel(_currentScale);
+  }
+
+  void onViewFinderTap(TapDownDetails details, BoxConstraints constraints) {
+    if (controller == null) {
+      return;
+    }
+
+    final CameraController cameraController = controller!;
+
+    final Offset offset = Offset(
+      details.localPosition.dx / constraints.maxWidth,
+      details.localPosition.dy / constraints.maxHeight,
+    );
+    cameraController.setExposurePoint(offset);
+    cameraController.setFocusPoint(offset);
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text(" Chat"),
-          actions: [_recordingButton()],
+          title: const Text("Chat"),
+          actions: [
+            _recordingButton(),
+            _videoRecordingButton(),
+          ],
         ),
         body: Column(
           children: [
@@ -125,14 +207,48 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Display the preview from the camera (or a message if the preview is not available).
+  Widget _cameraPreviewWidget() {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return const Text(
+        'Tap a camera',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 24.0,
+          fontWeight: FontWeight.w900,
+        ),
+      );
+    } else {
+      return Listener(
+        onPointerDown: (_) => _pointers++,
+        onPointerUp: (_) => _pointers--,
+        child: CameraPreview(
+          controller!,
+          child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onScaleStart: _handleScaleStart,
+              onScaleUpdate: _handleScaleUpdate,
+              onTapDown: (TapDownDetails details) =>
+                  onViewFinderTap(details, constraints),
+            );
+          }),
+        ),
+      );
+    }
+  }
+
   Widget _recordingButton() {
     return IconButton(
         onPressed: () async {
-          if (isRecording) {
+          if (isRecordingAudio) {
             String? filePath = await audioRecorder.stop();
             if (filePath != null) {
               setState(() {
-                isRecording = false;
+                isRecordingAudio = false;
                 recordingPath = filePath;
               });
             }
@@ -144,13 +260,23 @@ class _HomePageState extends State<HomePage> {
                   p.join(appDocumentsDir.path, "recording.wav");
               await audioRecorder.start(const RecordConfig(), path: filePath);
               setState(() {
-                isRecording = true;
+                isRecordingAudio = true;
                 recordingPath = null;
               });
             }
           }
         },
-        icon: Icon(isRecording ? (Icons.stop) : (Icons.mic)));
+        icon: Icon(isRecordingAudio ? (Icons.stop) : (Icons.mic)));
+  }
+
+  Widget _videoRecordingButton() {
+    return IconButton(
+      onPressed: () async {
+        // Navigate to the VideoScreen route
+        Navigator.pushNamed(context, '/camera');
+      },
+      icon: Icon(Icons.camera),
+    );
   }
 
   void _addMessage(types.Message message) {
