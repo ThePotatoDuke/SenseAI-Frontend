@@ -65,6 +65,10 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          title: const Text(" Chat"),
+          actions: [_recordingButton()],
+        ),
         body: Column(
           children: [
             Expanded(
@@ -80,7 +84,6 @@ class _HomePageState extends State<HomePage> {
             _buildUI(),
           ],
         ),
-        floatingActionButton: _recordingButton(),
       );
 
   Widget _buildUI() {
@@ -123,7 +126,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _recordingButton() {
-    return FloatingActionButton(
+    return IconButton(
         onPressed: () async {
           if (isRecording) {
             String? filePath = await audioRecorder.stop();
@@ -147,7 +150,7 @@ class _HomePageState extends State<HomePage> {
             }
           }
         },
-        child: Icon(isRecording ? (Icons.stop) : (Icons.mic)));
+        icon: Icon(isRecording ? (Icons.stop) : (Icons.mic)));
   }
 
   void _addMessage(types.Message message) {
