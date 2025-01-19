@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,9 +7,13 @@ import 'package:senseai/features/app/splash_screen/splash_screen.dart';
 import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/login_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/sign_up_page.dart';
+import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
+
+List<CameraDescription> cameras = [];
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  cameras = await availableCameras();
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: FirebaseOptions(
@@ -38,6 +43,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/signUp': (context) => SignUpPage(),
         '/home': (context) => HomePage(),
+        '/camera': (context) => VideoScreen(cameras)
       },
     );
   }
