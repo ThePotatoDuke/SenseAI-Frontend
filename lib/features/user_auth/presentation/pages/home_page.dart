@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
 
 String randomString() {
   final random = Random.secure();
@@ -29,6 +30,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+List<CameraDescription>? _cameras;
+
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
   final _user = const types.User(id: '82091008-a484-4a89-ae75-a22bf8d6f3ac');
@@ -38,7 +41,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool isRecordingAudio = false; // For audio recording
   bool isRecordingVideo = false; // For video recording
 
-  List<CameraDescription>? _cameras;
   int _selectedCameraIndex = 0;
   bool _isInitialized = false;
 
@@ -272,11 +274,33 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _videoRecordingButton() {
     return IconButton(
       onPressed: () async {
-        // Navigate to the VideoScreen route
-        Navigator.pushNamed(context, '/camera');
+        // Call the function to navigate and get the video
+        await navigateAndGetVideo(context);
       },
       icon: Icon(Icons.camera),
     );
+  }
+
+  Future<void> navigateAndGetVideo(BuildContext context) async {
+    // Fetch the list of available cameras
+    final cameras = await availableCameras();
+
+    // Ensure cameras are available before navigating
+    if (cameras.isEmpty) {
+      print('No cameras available');
+      return;
+    }
+
+    // Navigate to the VideoScreen and get the video path when done
+    final videoPath = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => VideoScreen(cameras)),
+    );
+
+    // Add the message directly without file selection
+    if (videoPath != null) {
+      _addMessageWithoutFile(videoPath); // Call the method to add the message
+    }
   }
 
   void _addMessage(types.Message message) {
@@ -348,6 +372,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       );
 
       _addMessage(message);
+    }
+  }
+
+  void _addMessageWithoutFile(String videoPath) {
+    // Check if the video path is not empty (or any other condition you want)
+    if (videoPath.isNotEmpty) {
+      final message = types.FileMessage(
+        author: _user,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        id: randomString(),
+        name: 'Video Recorded',
+        size: 0, // You can set size if needed
+        uri: videoPath, // Use the video path directly
+      );
+
+      _addMessage(
+          message); // Assuming _addMessage adds the message to your chat system
     }
   }
 
