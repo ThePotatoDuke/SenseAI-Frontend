@@ -165,83 +165,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 user: _user,
               ),
             ),
-            _buildUI(),
           ],
         ),
       );
-
-  Widget _buildUI() {
-    return SizedBox(
-      width: MediaQuery.sizeOf(context).width,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (recordingPath != null)
-            MaterialButton(
-              onPressed: () async {
-                if (isPlaying) {
-                  if (mounted) {
-                    setState(() {
-                      isPlaying = false;
-                    });
-                  }
-                  await audioPlayer.stop();
-                } else {
-                  await audioPlayer.setFilePath(recordingPath!);
-                  if (mounted) {
-                    setState(() {
-                      isPlaying = true;
-                    });
-                  }
-                  await audioPlayer.play();
-                }
-              },
-              color: Theme.of(context).colorScheme.primary,
-              child: Text(
-                isPlaying ? "Stop Playing" : "Start Playing",
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          if (recordingPath == null) const Text("No recording found"),
-        ],
-      ),
-    );
-  }
-
-  /// Display the preview from the camera (or a message if the preview is not available).
-  Widget _cameraPreviewWidget() {
-    final CameraController? cameraController = controller;
-
-    if (cameraController == null || !cameraController.value.isInitialized) {
-      return const Text(
-        'Tap a camera',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 24.0,
-          fontWeight: FontWeight.w900,
-        ),
-      );
-    } else {
-      return Listener(
-        onPointerDown: (_) => _pointers++,
-        onPointerUp: (_) => _pointers--,
-        child: CameraPreview(
-          controller!,
-          child: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onScaleStart: _handleScaleStart,
-              onScaleUpdate: _handleScaleUpdate,
-              onTapDown: (TapDownDetails details) =>
-                  onViewFinderTap(details, constraints),
-            );
-          }),
-        ),
-      );
-    }
-  }
 
   Widget _recordingButton() {
     return IconButton(
@@ -253,6 +179,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 isRecordingAudio = false;
                 recordingPath = filePath;
               });
+              addMessageFromPath(recordingPath!);
             }
           } else {
             if (await audioRecorder.hasPermission()) {
@@ -299,7 +226,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     // Add the message directly without file selection
     if (videoPath != null) {
-      _addMessageWithoutFile(videoPath); // Call the method to add the message
+      addMessageFromPath(videoPath); // Call the method to add the message
     }
   }
 
@@ -375,16 +302,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  void _addMessageWithoutFile(String videoPath) {
+  void addMessageFromPath(String filePath) {
     // Check if the video path is not empty (or any other condition you want)
-    if (videoPath.isNotEmpty) {
+    if (filePath.isNotEmpty) {
       final message = types.FileMessage(
         author: _user,
         createdAt: DateTime.now().millisecondsSinceEpoch,
         id: randomString(),
         name: 'Video Recorded',
         size: 0, // You can set size if needed
-        uri: videoPath, // Use the video path directly
+        uri: filePath, // Use the video path directly
       );
 
       _addMessage(

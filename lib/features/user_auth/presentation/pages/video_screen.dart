@@ -19,7 +19,7 @@ class _VideoScreenState extends State<VideoScreen> {
   @override
   void initState() {
     super.initState();
-    controller = CameraController(widget.cameras[0], ResolutionPreset.max);
+    controller = CameraController(widget.cameras[1], ResolutionPreset.max);
     controller.initialize().then((value) {
       if (!mounted) {
         return;
@@ -75,30 +75,77 @@ class _VideoScreenState extends State<VideoScreen> {
     controller.dispose();
   }
 
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Video Recording'),
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(child: CameraPreview(controller)),
-          if (controller.value.isInitialized)
-            Positioned(
-              bottom: 30,
-              left: 30,
-              child: IconButton(
-                icon: Icon(
-                  isRecording ? Icons.stop : Icons.videocam,
-                  size: 40,
-                  color: Colors.red,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Camera preview at the top
+        Expanded(
+          child: Stack(
+            children: [
+              // Constrained Camera Preview with the same size as the screen
+              SizedBox.expand(
+                child: CameraPreview(controller),
+              ),
+              if (isRecording)
+                Align(
+                  alignment: Alignment.bottomCenter, // Align at the bottom
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                        bottom: 80), // Adjust to fine-tune
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 500),
+                          width: 12,
+                          height: 12,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          "Recording...",
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                onPressed: isRecording ? stopRecording : startRecording,
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        GestureDetector(
+          onTap: isRecording ? stopRecording : startRecording,
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.5),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(
+                isRecording ? Icons.stop : Icons.videocam,
+                color: Colors.white,
+                size: 36,
               ),
             ),
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
