@@ -347,7 +347,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
 
-  void _handleMessageTap(BuildContext context, types.Message message) async {
+  void _handleMessageTap(BuildContext context, types.Message message) async { //This includes files hosted online
     if (message is types.FileMessage) {
       var localPath = message.uri;
 
