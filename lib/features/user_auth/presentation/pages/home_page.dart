@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 
 import 'dart:convert';
@@ -159,7 +160,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               child: Chat(
                 messages: _messages,
                 onAttachmentPressed: _handleAttachmentPressed,
-                // onMessageTap: _handleMessageTap,
+                onMessageTap: _handleMessageTap,
                 onPreviewDataFetched: _handlePreviewDataFetched,
                 onSendPressed: _handleSendPressed,
                 user: _user,
@@ -348,7 +349,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   // void _handleMessageTap(BuildContext _, types.Message message) async {
   //   if (message is types.FileMessage) {
   //     var localPath = message.uri;
-
+  //
   //     if (message.uri.startsWith('http')) {
   //       try {
   //         final index =
@@ -357,17 +358,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   //             (_messages[index] as types.FileMessage).copyWith(
   //           isLoading: true,
   //         );
-
+  //
   //         setState(() {
   //           _messages[index] = updatedMessage;
   //         });
-
+  //
   //         final client = http.Client();
   //         final request = await client.get(Uri.parse(message.uri));
   //         final bytes = request.bodyBytes;
   //         final documentsDir = (await getApplicationDocumentsDirectory()).path;
   //         localPath = '$documentsDir/${message.name}';
-
+  //
   //         if (!File(localPath).existsSync()) {
   //           final file = File(localPath);
   //           await file.writeAsBytes(bytes);
@@ -379,16 +380,71 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   //             (_messages[index] as types.FileMessage).copyWith(
   //           isLoading: null,
   //         );
-
+  //
   //         setState(() {
   //           _messages[index] = updatedMessage;
   //         });
   //       }
   //     }
-
-  //     // await OpenFilex.open(localPath);
+  //
+  //     await OpenFilex.open(localPath);
   //   }
   // }
+
+
+
+  void _handleMessageTap(BuildContext context, types.Message message) async {
+    if (message is types.FileMessage) {
+      var localPath = message.uri;
+
+      // If the file is hosted online (HTTP/HTTPS), download it
+      if (message.uri.startsWith('http')) {
+        try {
+          // Find the index of the message in the list
+          final index = _messages.indexWhere((element) => element.id == message.id);
+
+          // Update the message to show a loading indicator
+          final updatedMessage = (_messages[index] as types.FileMessage).copyWith(
+            isLoading: true,
+          );
+
+          setState(() {
+            _messages[index] = updatedMessage;
+          });
+
+          // Download the file
+          final client = http.Client();
+          final request = await client.get(Uri.parse(message.uri));
+          final bytes = request.bodyBytes;
+
+          // Get the application documents directory
+          final documentsDir = (await getApplicationDocumentsDirectory()).path;
+          localPath = '$documentsDir/${message.name}';
+
+          // Save the file if it doesn't already exist
+          if (!File(localPath).existsSync()) {
+            final file = File(localPath);
+            await file.writeAsBytes(bytes);
+          }
+        } finally {
+          // Find the index of the message again (in case the list changed)
+          final index = _messages.indexWhere((element) => element.id == message.id);
+
+          // Update the message to remove the loading indicator
+          final updatedMessage = (_messages[index] as types.FileMessage).copyWith(
+            isLoading: null,
+          );
+
+          setState(() {
+            _messages[index] = updatedMessage;
+          });
+        }
+      }
+
+      // Open the file using the `open_file` plugin
+      await OpenFile.open(localPath);
+    }
+  }
 
   void _handlePreviewDataFetched(
     types.TextMessage message,
