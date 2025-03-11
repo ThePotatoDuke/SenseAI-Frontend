@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.senseai"
+    namespace "com.example.senseai"  // Keep this line only
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -43,14 +43,14 @@ android {
 
     defaultConfig {
         applicationId "com.example.senseai"
-        minSdkVersion 23
+        minSdkVersion 24
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
 
     buildFeatures {
-        buildConfig true  // Corrected this line
+        buildConfig true
     }
 
     buildTypes {
