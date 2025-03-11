@@ -170,33 +170,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         ),
       );
 
-  Widget _recordingButton() {
+  _recordingButton() {
     return IconButton(
-        onPressed: () async {
-          if (isRecordingAudio) {
-            String? filePath = await audioRecorder.stop();
-            if (filePath != null) {
-              setState(() {
-                isRecordingAudio = false;
-                recordingPath = filePath;
-              });
-              addMessageFromPath(recordingPath!);
-            }
-          } else {
-            if (await audioRecorder.hasPermission()) {
-              final Directory appDocumentsDir =
-                  await getApplicationDocumentsDirectory();
-              final String filePath =
-                  p.join(appDocumentsDir.path, "recording.wav");
-              await audioRecorder.start(const RecordConfig(), path: filePath);
-              setState(() {
-                isRecordingAudio = true;
-                recordingPath = null;
-              });
-            }
+      onPressed: () async {
+        if (isRecordingAudio) {
+          String? filePath = await audioRecorder.stop();
+          if (filePath != null) {
+            setState(() {
+              isRecordingAudio = false;
+              recordingPath = filePath;
+            });
+            addMessageFromPath(recordingPath!);
           }
-        },
-        icon: Icon(isRecordingAudio ? (Icons.stop) : (Icons.mic)));
+        } else {
+          if (await audioRecorder.hasPermission()) {
+            final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+            final String audioDirectory = '${appDocumentsDir.path}/Audio/SenseAI/';
+            await Directory(audioDirectory).create(recursive: true);
+            final String filePath = p.join(audioDirectory, 'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+            await audioRecorder.start(const RecordConfig(), path: filePath);
+            setState(() {
+              isRecordingAudio = true;
+              recordingPath = null;
+            });
+          }
+        }
+      },
+      icon: Icon(isRecordingAudio ? Icons.stop : Icons.mic),
+    );
   }
 
   Widget _videoRecordingButton() {
