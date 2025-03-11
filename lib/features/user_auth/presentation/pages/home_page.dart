@@ -1,4 +1,7 @@
 import 'package:camera/camera.dart';
+import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_session.dart';
+import 'package:ffmpeg_kit_flutter_full_gpl/return_code.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:open_file/open_file.dart';
@@ -145,6 +148,68 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     cameraController.setFocusPoint(offset);
   }
 
+  Future<String?> extractAudio(String videoPath) async {
+    // Get the app's documents directory
+    final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+    final String audioPath = '${appDocumentsDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
+
+    // FFmpeg command to extract audio
+    final String command = '-i $videoPath -q:a 0 -map a $audioPath';
+
+    // Execute the command
+    final FFmpegSession session = await FFmpegKit.execute(command);
+
+    // Check the return code of the execution
+    final returnCode = session.getReturnCode();
+    if (returnCode==ReturnCode.success) {
+      print("Audio extracted successfully: $audioPath");
+      return audioPath;
+    } else {
+      print("Failed to extract audio. RC: $returnCode");
+      return null;
+    }
+  }
+
+  Future<List<String>> extractFrames(String videoPath) async {
+    // Get the app's documents directory
+    final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+    final String framesDirectory = '${appDocumentsDir.path}/frames/';
+    await Directory(framesDirectory).create(recursive: true);
+
+    // FFmpeg command to extract frames
+    final String framePathTemplate = '$framesDirectory/frame_%03d.png';
+    final String command = '-i $videoPath -vf fps=1 $framePathTemplate';
+
+    // Execute the command
+    final FFmpegSession session = await FFmpegKit.execute(command);
+
+    // Check the return code of the execution
+    final returnCode = session.getReturnCode();
+    if (returnCode == ReturnCode.success) {
+      print("Frames extracted successfully in: $framesDirectory");
+
+      // List all the frame files in the frames directory
+      final List<FileSystemEntity> files = Directory(framesDirectory).listSync();
+      return files.map((file) => file.path).toList();
+    } else {
+      print("Failed to extract frames. RC: $returnCode");
+      return [];
+    }
+  }
+  void processVideo(String videoPath) async {
+    // Extract audio
+    final String? audioPath = await extractAudio(videoPath);
+    if (audioPath != null) {
+      print("Audio saved at: $audioPath");
+    }
+
+    // Extract frames
+    final List<String> framePaths = await extractFrames(videoPath);
+    if (framePaths.isNotEmpty) {
+      print("Frames saved at: $framePaths");
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -229,6 +294,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // Add the message directly without file selection
     if (videoPath != null) {
       addMessageFromPath(videoPath); // Call the method to add the message
+      processVideo(videoPath);
     }
   }
 
