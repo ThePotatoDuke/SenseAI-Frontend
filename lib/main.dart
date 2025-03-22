@@ -1,4 +1,5 @@
 import 'package:camera/camera.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit_config.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,9 @@ Future main() async {
   } else {
     await Firebase.initializeApp();
   }
+  FFmpegKitConfig.enableLogCallback((log) {
+    print(log.getMessage());
+  });
   runApp(MyApp());
 }
 

@@ -1,7 +1,6 @@
 import 'package:camera/camera.dart';
-import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_full_gpl/ffmpeg_session.dart';
-import 'package:ffmpeg_kit_flutter_full_gpl/return_code.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_session.dart';
+import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:open_file/open_file.dart';
@@ -16,7 +15,7 @@ import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-// import 'package:open_filex/open_filex.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
@@ -58,16 +57,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
 
-    // Listen for audio playback completion
-    audioPlayer.playerStateStream.listen((playerState) {
-      if (playerState.processingState == ProcessingState.completed) {
-        if (mounted) {
-          setState(() {
-            isPlaying = false; // Reset isPlaying when playback completes
-          });
-        }
-      }
-    });
   }
 
   @override
@@ -151,17 +140,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<String?> extractAudio(String videoPath) async {
     // Get the app's documents directory
     final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-    final String audioPath = '${appDocumentsDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.mp3';
-
-    // FFmpeg command to extract audio
-    final String command = '-i $videoPath -q:a 0 -map a $audioPath';
+    final String audioPath = '${appDocumentsDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
     // Execute the command
+    final String command = '-i $videoPath -q:a 0 -vn $audioPath';
     final FFmpegSession session = await FFmpegKit.execute(command);
 
+    // Await the return code of the execution
+    final returnCode = await session.getReturnCode();
     // Check the return code of the execution
-    final returnCode = session.getReturnCode();
-    if (returnCode==ReturnCode.success) {
+    if (ReturnCode.isSuccess(returnCode)) {
+
       print("Audio extracted successfully: $audioPath");
       return audioPath;
     } else {
@@ -169,6 +158,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       return null;
     }
   }
+
 
   Future<List<String>> extractFrames(String videoPath) async {
     // Get the app's documents directory
@@ -178,24 +168,40 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     // FFmpeg command to extract frames
     final String framePathTemplate = '$framesDirectory/frame_%03d.png';
-    final String command = '-i $videoPath -vf fps=1 $framePathTemplate';
+    final String command = '-i "$videoPath" -vf fps=1 "$framePathTemplate"';
 
     // Execute the command
     final FFmpegSession session = await FFmpegKit.execute(command);
 
-    // Check the return code of the execution
-    final returnCode = session.getReturnCode();
-    if (returnCode == ReturnCode.success) {
+    // ✅ Await the return code
+    final returnCode = await session.getReturnCode();
+
+    if (ReturnCode.isSuccess(returnCode)) {
       print("Frames extracted successfully in: $framesDirectory");
 
       // List all the frame files in the frames directory
       final List<FileSystemEntity> files = Directory(framesDirectory).listSync();
+      final message = types.ImageMessage(
+        author: _user,
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        height: 100,
+        id: randomString(),
+        name: "result.name",
+        size: 100,
+        uri: "/data/user/0/com.example.senseai/app_flutter/frames/frame_001.png",
+        width: 100,
+      );
+
+      _addMessage(message);
       return files.map((file) => file.path).toList();
     } else {
       print("Failed to extract frames. RC: $returnCode");
       return [];
     }
+
+
   }
+
   void processVideo(String videoPath) async {
     // Extract audio
     final String? audioPath = await extractAudio(videoPath);
