@@ -38,6 +38,11 @@ List<CameraDescription>? _cameras;
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
   final _user = const types.User(id: '82091008-a484-4a89-ae75-a22bf8d6f3ac');
+  final _bot = const types.User(
+    id: 'bot-1234', // Unique bot ID
+    firstName: 'SenseAI Bot', // Bot name
+  );
+
   final AudioRecorder audioRecorder = AudioRecorder();
   CameraController? controller;
   List<CameraDescription>? cameras;
@@ -496,5 +501,62 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
 
     _addMessage(textMessage);
+
+    final botMessage = types.TextMessage(
+      author: _bot, // Bot as author
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: randomString(),
+      text: "Thinking...", // Placeholder text
+      metadata: {"isLoading": true}, // Set loading state
+    );
+
+    _addMessage(botMessage);
+
+    sendText(message.text).then((responseText) {
+      _updateLastMessage(responseText);
+    }).catchError((error) {
+      _updateLastMessage("Error: Failed to get response.");
+    });
   }
+
+  Future<String> sendText(String text) async {
+    final url = Uri.parse("https://your-backend-url.com/api/text");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"message": text}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)["reply"]; // Adjust to backend response
+      } else {
+        throw Exception("Failed to get response");
+      }
+    } catch (e) {
+      throw Exception("Error: ${e.toString()}");
+    }
+  }
+
+
+  void _updateLastMessage(String newText) {
+    final index = _messages.length - 1; // Get last message index
+
+    if (index >= 0 && _messages[index] is types.TextMessage) {
+      final updatedMessage = (_messages[index] as types.TextMessage).copyWith(
+        text: newText, // Update with actual response
+        metadata: {"isLoading": false}, // Remove loading state
+      );
+
+      setState(() {
+        _messages[index] = updatedMessage;
+      });
+    }
+  }
+
+
 }
+
+
+
