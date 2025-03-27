@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:flutter/material.dart';
+import 'package:http/io_client.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
@@ -19,6 +20,8 @@ import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
+
+import '../../data/api_service.dart';
 
 String randomString() {
   final random = Random.secure();
@@ -42,6 +45,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     id: 'bot-1234', // Unique bot ID
     firstName: 'SenseAI Bot', // Bot name
   );
+
+  final apiService = ApiService(http.Client());
 
   final AudioRecorder audioRecorder = AudioRecorder();
   CameraController? controller;
@@ -512,33 +517,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     _addMessage(botMessage);
 
-    sendText(message.text).then((responseText) {
+    final client = http.Client(); // Or http.BrowserClient() for web
+
+    apiService.sendText(message.text).then((responseText) {
       _updateLastMessage(responseText);
     }).catchError((error) {
       _updateLastMessage("Error: Failed to get response.");
     });
   }
-
-  Future<String> sendText(String text) async {
-    final url = Uri.parse("https://your-backend-url.com/api/text");
-
-    try {
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"message": text}),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body)["reply"]; // Adjust to backend response
-      } else {
-        throw Exception("Failed to get response");
-      }
-    } catch (e) {
-      throw Exception("Error: ${e.toString()}");
-    }
-  }
-
 
   void _updateLastMessage(String newText) {
     final index = _messages.length - 1; // Get last message index
@@ -554,9 +540,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       });
     }
   }
-
-
 }
+
 
 
 
