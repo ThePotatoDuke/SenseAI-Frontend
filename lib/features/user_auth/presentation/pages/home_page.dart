@@ -227,9 +227,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // Get the app's documents directory
     final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
     final String framesDirectory = '${appDocumentsDir.path}/frames/';
+    final String resizedFramesDirectory =
+        '${appDocumentsDir.path}/resized_frames/';
 
-    // Delete all previous frames
+    // Delete all previous frames and resized frames
     await _deletePreviousFrames(framesDirectory);
+    await _deletePreviousFrames(resizedFramesDirectory);
 
     // Extract audio
     final String? audioPath = await extractAudio(videoPath);
@@ -257,18 +260,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _deletePreviousFrames(String framesDirectory) async {
-    final framesDir = Directory(framesDirectory);
+  Future<void> _deletePreviousFrames(String directoryPath) async {
+    final directory = Directory(directoryPath);
 
     // Check if the directory exists
-    if (await framesDir.exists()) {
+    if (await directory.exists()) {
       // List all files in the directory and delete them
       try {
-        final files = framesDir.listSync();
+        final files = directory.listSync();
         for (var file in files) {
           if (file is File) {
             await file.delete();
-            print("Deleted previous frame: ${file.path}");
+            print("Deleted file: ${file.path}");
           }
         }
       } catch (e) {
