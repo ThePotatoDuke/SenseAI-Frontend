@@ -59,13 +59,11 @@ class _VideoScreenState extends State<VideoScreen> {
       });
 
       // Handle the recorded video (for example, return the path)
-      if (file != null) {
-        videoPath = file.path;
-        print("Video saved to $videoPath");
+      videoPath = file.path;
+      print("Video saved to $videoPath");
 
-        // Pop the screen and return the video path to the previous screen
-        Navigator.pop(context, videoPath);
-      }
+      // Pop the screen and return the video path to the previous screen
+      Navigator.pop(context, videoPath);
     });
   }
 
