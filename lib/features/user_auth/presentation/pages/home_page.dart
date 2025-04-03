@@ -223,20 +223,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return File(outputPath);
   }
 
-  // void processVideo(String videoPath) async {
-  //   // Extract audio
-  //   final String? audioPath = await extractAudio(videoPath);
-  //   if (audioPath != null) {
-  //     print("Audio saved at: $audioPath");
-  //   }
-
-  //   // Extract frames
-  //   final List<String> framePaths = await extractFrames(videoPath);
-  //   if (framePaths.isNotEmpty) {
-  //     print("Frames saved at: $framePaths");
-  //   }
-  // }
   void processVideo(String videoPath) async {
+    // Get the app's documents directory
+    final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+    final String framesDirectory = '${appDocumentsDir.path}/frames/';
+
+    // Delete all previous frames
+    await _deletePreviousFrames(framesDirectory);
+
     // Extract audio
     final String? audioPath = await extractAudio(videoPath);
     if (audioPath != null) {
@@ -260,6 +254,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }).catchError((error) {
         _updateLastMessage("Error: Failed to get response.");
       });
+    }
+  }
+
+  Future<void> _deletePreviousFrames(String framesDirectory) async {
+    final framesDir = Directory(framesDirectory);
+
+    // Check if the directory exists
+    if (await framesDir.exists()) {
+      // List all files in the directory and delete them
+      try {
+        final files = framesDir.listSync();
+        for (var file in files) {
+          if (file is File) {
+            await file.delete();
+            print("Deleted previous frame: ${file.path}");
+          }
+        }
+      } catch (e) {
+        print("Failed to delete previous frames: $e");
+      }
     }
   }
 

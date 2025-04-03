@@ -7,12 +7,13 @@ class ApiService {
   ApiService(this.client);
 
   Future<String> sendText(String text) async {
-    final url = Uri.parse("https://your-backend-url.com/api/text");
+    final url =
+        Uri.parse("https://1ecb-176-234-247-8.ngrok-free.app/analyze/text");
 
     final response = await client.post(
       url,
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"message": text}),
+      body: jsonEncode({"text": text}),
     );
 
     if (response.statusCode == 200) {
@@ -21,8 +22,10 @@ class ApiService {
       throw Exception("Failed to get response");
     }
   }
+
   Future<String> sendImages(List<File> images) async {
-    final url = Uri.parse("https://your-backend-url.com/api/images");
+    final url =
+        Uri.parse("https://1ecb-176-234-247-8.ngrok-free.app/analyze/face");
 
     // Create a multipart request
     final request = http.MultipartRequest('POST', url)
@@ -32,7 +35,7 @@ class ApiService {
     for (var image in images) {
       var imageStream = http.ByteStream(image.openRead());
       var imageLength = await image.length();
-      var multipartFile = http.MultipartFile('images', imageStream, imageLength,
+      var multipartFile = http.MultipartFile('image', imageStream, imageLength,
           filename: image.path.split('/').last);
       request.files.add(multipartFile);
     }
