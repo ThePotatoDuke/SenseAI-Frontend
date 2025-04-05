@@ -94,56 +94,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     });
   }
 
-  @override
-  // void didChangeAppLifecycleState(AppLifecycleState state) {
-  //   if (controller == null || !(controller?.value.isInitialized ?? false)) {
-  //     return;
-  //   }
-
-  //   if (state == AppLifecycleState.inactive) {
-  //     controller?.dispose();
-  //   } else if (state == AppLifecycleState.resumed) {
-  //     _initializeCamera();
-  //   }
-  // }
-
-  double _minAvailableZoom = 1.0;
-  double _maxAvailableZoom = 1.0;
-
-  double _currentScale = 1.0;
-  double _baseScale = 1.0;
-  int _pointers = 0;
-
-  void _handleScaleStart(ScaleStartDetails details) {
-    _baseScale = _currentScale;
-  }
-
-  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
-    // When there are not exactly two fingers on screen don't scale
-    if (controller == null || _pointers != 2) {
-      return;
-    }
-
-    _currentScale = (_baseScale * details.scale)
-        .clamp(_minAvailableZoom, _maxAvailableZoom);
-
-    await controller!.setZoomLevel(_currentScale);
-  }
-
-  void onViewFinderTap(TapDownDetails details, BoxConstraints constraints) {
-    if (controller == null) {
-      return;
-    }
-
-    final CameraController cameraController = controller!;
-
-    final Offset offset = Offset(
-      details.localPosition.dx / constraints.maxWidth,
-      details.localPosition.dy / constraints.maxHeight,
-    );
-    cameraController.setExposurePoint(offset);
-    cameraController.setFocusPoint(offset);
-  }
 
   Future<String?> extractAudio(String videoPath) async {
     // Get the app's documents directory
@@ -171,114 +121,107 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // Get the app's documents directory
     final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
     final String framesDirectory = '${appDocumentsDir.path}/frames/';
-    await Directory(framesDirectory).create(recursive: true);
+    final Directory framesDir = Directory(framesDirectory);
 
-    // FFmpeg command to extract frames
+    // Delete existing frames directory if it exists
+    if (await framesDir.exists()) {
+      await framesDir.delete(recursive: true);
+    }
+    // Create fresh directory
+    await framesDir.create(recursive: true);
+
+    // FFmpeg command to extract frames (with -y flag to overwrite)
     final String framePathTemplate = '$framesDirectory/frame_%03d.png';
-    final String command = '-i "$videoPath" -vf fps=1 "$framePathTemplate"';
+    final String command = '-y -i "$videoPath" -vf fps=1 "$framePathTemplate"';
 
     // Execute the command
     final FFmpegSession session = await FFmpegKit.execute(command);
-
-    // ✅ Await the return code
     final returnCode = await session.getReturnCode();
 
     if (ReturnCode.isSuccess(returnCode)) {
       print("Frames extracted successfully in: $framesDirectory");
 
-      // List all the frame files in the frames directory
-      final List<FileSystemEntity> files =
-          Directory(framesDirectory).listSync();
-      final message = types.ImageMessage(
-        author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        height: 100,
-        id: randomString(),
-        name: "result.name",
-        size: 100,
-        uri:
-            "/data/user/0/com.example.senseai/app_flutter/frames/frame_001.png",
-        width: 100,
-      );
+      // Get the generated frame files
+      final List<FileSystemEntity> files = framesDir.listSync();
+      final framePaths = files
+          .where((file) => file is File && file.path.endsWith('.png'))
+          .map((file) => file.path)
+          .toList();
 
-      _addMessage(message);
-      return files.map((file) => file.path).toList();
+      if (framePaths.isNotEmpty) {
+        final message = types.ImageMessage(
+          author: _user,
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          height: 100,
+          id: randomString(),
+          name: "result.name",
+          size: 100,
+          uri: framePaths.first,
+          width: 100,
+        );
+        _addMessage(message);
+      }
+
+      return framePaths;
     } else {
       print("Failed to extract frames. RC: $returnCode");
       return [];
     }
   }
 
-  Future<File> resizeImageWithFFmpegKit(File image) async {
-    final tempDir = await getTemporaryDirectory();
-    String outputPath =
-        '${tempDir.path}/${image.uri.pathSegments.last}-resized.jpg';
+  Future<File> resizeImageWithFFmpegKit(File inputFile) async {
+    final outputPath = '${inputFile.path}-resized.jpg';
+    final outputFile = File(outputPath);
 
-    // Resize to 224x224 and compress
-    String resizeCommand =
-        '-i "${image.path}" -vf "scale=224:224" -q:v 5 "$outputPath"';
+    // Delete if exists before processing
+    if (await outputFile.exists()) {
+      await outputFile.delete();
+    }
 
-    await FFmpegKit.executeAsync(resizeCommand);
+    await FFmpegKit.execute('-i "${inputFile.path}" -vf scale=640:480 "$outputPath"');
 
-    return File(outputPath);
+    return outputFile;
   }
 
   void processVideo(String videoPath) async {
-    // Get the app's documents directory
-    final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-    final String framesDirectory = '${appDocumentsDir.path}/frames/';
-    final String resizedFramesDirectory =
-        '${appDocumentsDir.path}/resized_frames/';
+    try {
+      // Get the app's documents directory
+      final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+      final String framesDirectory = '${appDocumentsDir.path}/frames/';
+      final String resizedFramesDirectory = '${appDocumentsDir.path}/resized_frames/';
 
-    // Delete all previous frames and resized frames
-    await _deletePreviousFrames(framesDirectory);
-    await _deletePreviousFrames(resizedFramesDirectory);
-
-    // Extract audio
-    final String? audioPath = await extractAudio(videoPath);
-    if (audioPath != null) {
-      print("Audio saved at: $audioPath");
-    }
-
-    // Extract frames
-    final List<String> framePaths = await extractFrames(videoPath);
-    if (framePaths.isNotEmpty) {
-      print("Frames saved at: $framePaths");
-
-      // Resize extracted frames
-      List<File> resizedFrames = [];
-      for (var path in framePaths) {
-        File resized = await resizeImageWithFFmpegKit(File(path));
-        resizedFrames.add(resized);
+      // Extract audio
+      final String? audioPath = await extractAudio(videoPath);
+      if (audioPath != null) {
+        print("Audio saved at: $audioPath");
       }
 
-      apiService.sendImages(resizedFrames).then((responseText) {
-        _updateLastMessage(responseText);
-      }).catchError((error) {
-        _updateLastMessage("Error: Failed to get response.");
-      });
-    }
-  }
+      // Extract frames
+      final List<String> framePaths = await extractFrames(videoPath);
 
-  Future<void> _deletePreviousFrames(String directoryPath) async {
-    final directory = Directory(directoryPath);
+      if (framePaths.isNotEmpty) {
+        print("Frames saved at: $framePaths");
 
-    // Check if the directory exists
-    if (await directory.exists()) {
-      // List all files in the directory and delete them
-      try {
-        final files = directory.listSync();
-        for (var file in files) {
-          if (file is File) {
-            await file.delete();
-            print("Deleted file: ${file.path}");
-          }
+        // Resize extracted frames - wait for ALL to complete
+        List<File> resizedFrames = await Future.wait(
+          framePaths.map((path) async {
+            return await resizeImageWithFFmpegKit(File(path));
+          }),
+        );
+
+        // Now send all resized frames
+        try {
+          final responseText = await apiService.sendImages(resizedFrames);
+          _updateLastMessage(responseText);
+        } catch (error) {
+          _updateLastMessage("Error: Failed to get response.");
         }
-      } catch (e) {
-        print("Failed to delete previous frames: $e");
       }
+    } catch (e) {
+      _updateLastMessage("Error processing video: $e");
     }
   }
+
 
   @override
   Widget build(BuildContext context) => Scaffold(
