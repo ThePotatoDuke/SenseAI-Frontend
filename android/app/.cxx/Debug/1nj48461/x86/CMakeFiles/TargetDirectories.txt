@@ -1,0 +1,2 @@
+C:/Users/User/Desktop/SenseAI-Frontend/android/app/.cxx/Debug/1nj48461/x86/CMakeFiles/edit_cache.dir
+C:/Users/User/Desktop/SenseAI-Frontend/android/app/.cxx/Debug/1nj48461/x86/CMakeFiles/rebuild_cache.dir
