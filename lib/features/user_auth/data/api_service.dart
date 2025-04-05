@@ -8,7 +8,7 @@ class ApiService {
 
   Future<String> sendText(String text) async {
     final url =
-        Uri.parse("https://1ecb-176-234-247-8.ngrok-free.app/analyze/text");
+        Uri.parse("https://4e0d-176-234-247-8.ngrok-free.app/analyze/text");
 
     final response = await client.post(
       url,
@@ -25,7 +25,7 @@ class ApiService {
 
   Future<String> sendImages(List<File> images) async {
     final url =
-        Uri.parse("https://1ecb-176-234-247-8.ngrok-free.app/analyze/face");
+        Uri.parse("https://4e0d-176-234-247-8.ngrok-free.app/analyze/face");
 
     // Create a multipart request
     final request = http.MultipartRequest('POST', url)
