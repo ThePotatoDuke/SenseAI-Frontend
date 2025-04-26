@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 // Import Firebase Auth
 import 'package:senseai/features/app/splash_screen/splash_screen.dart';
-import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
+import 'package:senseai/features/user_auth/presentation/pages/chat_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/login_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/sign_up_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
