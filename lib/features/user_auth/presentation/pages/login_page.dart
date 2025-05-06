@@ -213,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
         await _firebaseAuth.signInWithCredential(credential);
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => ChatPage()),
           (route) => false,
         );
       }

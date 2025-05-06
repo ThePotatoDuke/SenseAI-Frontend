@@ -447,6 +447,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_card_swiper:
+    dependency: "direct main"
+    description:
+      name: flutter_card_swiper
+      sha256: aac59b259cb6ded965bc5c4f7f8ea63a66e88e8f1fdfc1d0f42ca1d8e7b61a5b
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.1"
   flutter_chat_types:
     dependency: transitive
     description:
@@ -463,6 +471,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.15"
+  flutter_emoji:
+    dependency: "direct main"
+    description:
+      name: flutter_emoji
+      sha256: "3cc794d2459738e6489cee63f50e85de3732257042f425611d255c8049ce1b81"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.5.1"
   flutter_link_previewer:
     dependency: transitive
     description:

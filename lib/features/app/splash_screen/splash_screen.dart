@@ -53,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (user != null) {
       // Navigate to HomePage if user is logged in
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/main');
     } else {
       // Navigate to LoginPage if user is not logged in
       Navigator.pushReplacementNamed(context, '/login');
