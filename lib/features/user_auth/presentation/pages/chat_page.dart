@@ -1,24 +1,20 @@
-import 'package:camera/camera.dart';
-import 'package:ffmpeg_kit_flutter/ffmpeg_session.dart';
-import 'package:ffmpeg_kit_flutter/return_code.dart';
-import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path/path.dart' as p;
-
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
+import 'package:senseai/features/utils/video_processor.dart';
 
 import '../../data/api_service.dart';
 
@@ -28,16 +24,16 @@ String randomString() {
   return base64UrlEncode(values);
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class ChatPage extends StatefulWidget {
+  const ChatPage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<ChatPage> createState() => _ChatPageState();
 }
 
 List<CameraDescription>? _cameras;
 
-class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
   final _user = const types.User(id: '82091008-a484-4a89-ae75-a22bf8d6f3ac');
   final _bot = const types.User(
@@ -46,6 +42,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   );
 
   final apiService = ApiService(http.Client());
+  late VideoProcessor _processor;
+
+  @override
+  void initState() {
+    super.initState();
+    _processor = VideoProcessor(apiService);
+
+  }
 
   final AudioRecorder audioRecorder = AudioRecorder();
   CameraController? controller;
@@ -60,12 +64,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   String? recordingPath;
   final AudioPlayer audioPlayer = AudioPlayer();
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _initializeCamera();
-  }
+
 
   @override
   void dispose() {
@@ -93,135 +92,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _isInitialized = true;
     });
   }
-
-
-  Future<String?> extractAudio(String videoPath) async {
-    // Get the app's documents directory
-    final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-    final String audioPath =
-        '${appDocumentsDir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-
-    // Execute the command
-    final String command = '-i $videoPath -q:a 0 -vn $audioPath';
-    final FFmpegSession session = await FFmpegKit.execute(command);
-
-    // Await the return code of the execution
-    final returnCode = await session.getReturnCode();
-    // Check the return code of the execution
-    if (ReturnCode.isSuccess(returnCode)) {
-      print("Audio extracted successfully: $audioPath");
-      return audioPath;
-    } else {
-      print("Failed to extract audio. RC: $returnCode");
-      return null;
-    }
-  }
-
-  Future<List<String>> extractFrames(String videoPath) async {
-    // Get the app's documents directory
-    final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-    final String framesDirectory = '${appDocumentsDir.path}/frames/';
-    final Directory framesDir = Directory(framesDirectory);
-
-    // Delete existing frames directory if it exists
-    if (await framesDir.exists()) {
-      await framesDir.delete(recursive: true);
-    }
-    // Create fresh directory
-    await framesDir.create(recursive: true);
-
-    // FFmpeg command to extract frames (with -y flag to overwrite)
-    final String framePathTemplate = '$framesDirectory/frame_%03d.png';
-    final String command = '-y -i "$videoPath" -vf fps=1 "$framePathTemplate"';
-
-    // Execute the command
-    final FFmpegSession session = await FFmpegKit.execute(command);
-    final returnCode = await session.getReturnCode();
-
-    if (ReturnCode.isSuccess(returnCode)) {
-      print("Frames extracted successfully in: $framesDirectory");
-
-      // Get the generated frame files
-      final List<FileSystemEntity> files = framesDir.listSync();
-      final framePaths = files
-          .where((file) => file is File && file.path.endsWith('.png'))
-          .map((file) => file.path)
-          .toList();
-
-      if (framePaths.isNotEmpty) {
-        final message = types.ImageMessage(
-          author: _user,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          height: 100,
-          id: randomString(),
-          name: "result.name",
-          size: 100,
-          uri: framePaths.first,
-          width: 100,
-        );
-        _addMessage(message);
-      }
-
-      return framePaths;
-    } else {
-      print("Failed to extract frames. RC: $returnCode");
-      return [];
-    }
-  }
-
-  Future<File> resizeImageWithFFmpegKit(File inputFile) async {
-    final outputPath = '${inputFile.path}-resized.jpg';
-    final outputFile = File(outputPath);
-
-    // Delete if exists before processing
-    if (await outputFile.exists()) {
-      await outputFile.delete();
-    }
-
-    await FFmpegKit.execute('-i "${inputFile.path}" -vf scale=640:480 "$outputPath"');
-
-    return outputFile;
-  }
-
-  void processVideo(String videoPath) async {
-    try {
-      // Get the app's documents directory
-      final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-      final String framesDirectory = '${appDocumentsDir.path}/frames/';
-      final String resizedFramesDirectory = '${appDocumentsDir.path}/resized_frames/';
-
-      // Extract audio
-      final String? audioPath = await extractAudio(videoPath);
-      if (audioPath != null) {
-        print("Audio saved at: $audioPath");
-      }
-
-      // Extract frames
-      final List<String> framePaths = await extractFrames(videoPath);
-
-      if (framePaths.isNotEmpty) {
-        print("Frames saved at: $framePaths");
-
-        // Resize extracted frames - wait for ALL to complete
-        List<File> resizedFrames = await Future.wait(
-          framePaths.map((path) async {
-            return await resizeImageWithFFmpegKit(File(path));
-          }),
-        );
-
-        // Now send all resized frames
-        try {
-          final responseText = await apiService.sendImages(resizedFrames);
-          _updateLastMessage(responseText);
-        } catch (error) {
-          _updateLastMessage("Error: Failed to get response.");
-        }
-      }
-    } catch (e) {
-      _updateLastMessage("Error processing video: $e");
-    }
-  }
-
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -310,7 +180,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // Add the message directly without file selection
     if (videoPath != null) {
       addMessageFromPath(videoPath); // Call the method to add the message
-      processVideo(videoPath);
+      _processor.processVideo(videoPath);
     }
   }
 
@@ -340,16 +210,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _handleFileSelection();
-                },
-                child: const Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text('File'),
-                ),
-              ),
-              TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -367,24 +227,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   //               Navigator.pushNamed(context, "/login");
   //               showToast(message: "Successfully signed out");
 
-  void _handleFileSelection() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-    );
-
-    if (result != null && result.files.single.path != null) {
-      final message = types.FileMessage(
-        author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        id: randomString(),
-        name: result.files.single.name,
-        size: result.files.single.size,
-        uri: result.files.single.path!,
-      );
-
-      _addMessage(message);
-    }
-  }
 
   void addMessageFromPath(String filePath) {
     // Check if the video path is not empty (or any other condition you want)
@@ -430,57 +272,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
-    //This includes files hosted online
+
     if (message is types.FileMessage) {
       var localPath = message.uri;
-
-      // If the file is hosted online (HTTP/HTTPS), download it
-      if (message.uri.startsWith('http')) {
-        try {
-          // Find the index of the message in the list
-          final index =
-              _messages.indexWhere((element) => element.id == message.id);
-
-          // Update the message to show a loading indicator
-          final updatedMessage =
-              (_messages[index] as types.FileMessage).copyWith(
-            isLoading: true,
-          );
-
-          setState(() {
-            _messages[index] = updatedMessage;
-          });
-
-          // Download the file
-          final client = http.Client();
-          final request = await client.get(Uri.parse(message.uri));
-          final bytes = request.bodyBytes;
-
-          // Get the application documents directory
-          final documentsDir = (await getApplicationDocumentsDirectory()).path;
-          localPath = '$documentsDir/${message.name}';
-
-          // Save the file if it doesn't already exist
-          if (!File(localPath).existsSync()) {
-            final file = File(localPath);
-            await file.writeAsBytes(bytes);
-          }
-        } finally {
-          // Find the index of the message again (in case the list changed)
-          final index =
-              _messages.indexWhere((element) => element.id == message.id);
-
-          // Update the message to remove the loading indicator
-          final updatedMessage =
-              (_messages[index] as types.FileMessage).copyWith(
-            isLoading: null,
-          );
-
-          setState(() {
-            _messages[index] = updatedMessage;
-          });
-        }
-      }
 
       // Open the file using the `open_file` plugin
       await OpenFile.open(localPath);
@@ -523,11 +317,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     final client = http.Client(); // Or http.BrowserClient() for web
 
-    apiService.sendText(message.text).then((responseText) {
+    apiService.sendMultipartRequest(message.text).then((responseText) {
       _updateLastMessage(responseText);
     }).catchError((error) {
-      _updateLastMessage("Error: Failed to get response.");
+      _updateLastMessage(error.toString());
     });
+
+    // apiService.sendText(message.text).then((responseText) {
+    //   _updateLastMessage(responseText);
+    // }).catchError((error) {
+    //   _updateLastMessage("Error: Failed to get response.");
+    // });
   }
 
   void _updateLastMessage(String newText) {
@@ -538,7 +338,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         text: newText, // Update with actual response
         metadata: {"isLoading": false}, // Remove loading state
       );
-
       setState(() {
         _messages[index] = updatedMessage;
       });
