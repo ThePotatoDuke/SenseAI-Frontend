@@ -64,6 +64,7 @@ dependencies:
   permission_handler: ^11.3.1
 
 
+  flutter_chat_types: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
