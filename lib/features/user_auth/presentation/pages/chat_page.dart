@@ -16,6 +16,7 @@ import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
 import 'package:senseai/features/utils/video_processor.dart';
 
+import '../../../utils/audio_processor.dart';
 import '../../data/api_service.dart';
 
 String randomString() {
@@ -107,7 +108,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             Expanded(
               child: Chat(
                 messages: _messages,
-                onAttachmentPressed: _handleAttachmentPressed,
                 onMessageTap: _handleMessageTap,
                 onPreviewDataFetched: _handlePreviewDataFetched,
                 onSendPressed: _handleSendPressed,
@@ -179,8 +179,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
     // Add the message directly without file selection
     if (videoPath != null) {
-      addMessageFromPath(videoPath); // Call the method to add the message
+      addMessageFromPath(videoPath);
       _processor.processVideo(videoPath);
+
+      final audioPath = await _processor.extractAudio(videoPath);
+      if (audioPath.isNotEmpty) {
+        final transcript = await transcribeAudio(audioPath);
+        print('Transcript: $transcript');
+        // Optionally display it in the chat
+        _addMessage(
+          types.TextMessage(
+            author: _user,
+            id: DateTime.now().toIso8601String(),
+            text: transcript,
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
+      }
     }
   }
 
@@ -190,38 +205,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     });
   }
 
-  void _handleAttachmentPressed() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (BuildContext context) => SafeArea(
-        child: SizedBox(
-          height: 144,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _handleImageSelection();
-                },
-                child: const Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text('Photo'),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: Text('Cancel'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   // FirebaseAuth.instance.signOut();
   //               Navigator.pushNamed(context, "/login");
@@ -245,31 +229,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-  void _handleImageSelection() async {
-    final result = await ImagePicker().pickImage(
-      imageQuality: 70,
-      maxWidth: 1440,
-      source: ImageSource.gallery,
-    );
 
-    if (result != null) {
-      final bytes = await result.readAsBytes();
-      final image = await decodeImageFromList(bytes);
-
-      final message = types.ImageMessage(
-        author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        height: image.height.toDouble(),
-        id: randomString(),
-        name: result.name,
-        size: bytes.length,
-        uri: result.path,
-        width: image.width.toDouble(),
-      );
-
-      _addMessage(message);
-    }
-  }
 
   void _handleMessageTap(BuildContext context, types.Message message) async {
 

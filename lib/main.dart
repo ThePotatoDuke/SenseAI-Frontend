@@ -10,11 +10,13 @@ import 'package:senseai/features/user_auth/presentation/pages/login_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/main_screen.dart';
 import 'package:senseai/features/user_auth/presentation/pages/sign_up_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';  // import dotenv
 
 List<CameraDescription> cameras = [];
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   cameras = await availableCameras();
   if (kIsWeb) {
     await Firebase.initializeApp(
