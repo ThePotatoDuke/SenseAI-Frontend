@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_emoji/flutter_emoji.dart';
 
 class PreviousChatsScreen extends StatelessWidget {
   final List<Chat> chats = [
