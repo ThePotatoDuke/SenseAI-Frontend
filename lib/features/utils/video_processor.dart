@@ -90,9 +90,6 @@ class VideoProcessor {
 
   Future<List<File>> processVideo(String videoPath) async {
     try {
-      final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-      final String framesDirectory = '${appDocumentsDir.path}/frames/';
-      final String resizedFramesDirectory = '${appDocumentsDir.path}/resized_frames/';
 
       // Extract audio
       final String? audioPath = await extractAudio(videoPath);
