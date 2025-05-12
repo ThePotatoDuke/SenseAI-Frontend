@@ -185,7 +185,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       final audioPath = await _processor.extractAudio(videoPath);
       if (audioPath.isNotEmpty) {
         final transcript = await transcribeAudio(audioPath);
-        print('Transcript: $transcript');
         // Optionally display it in the chat
         _addMessage(
           types.TextMessage(
@@ -198,6 +197,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       }
     }
   }
+
+  void processAndSendVideo(String videoPath) async {
+    try {
+      final resizedFrames = await _processor.processVideo(videoPath);
+      final responseText = await apiService.sendImages(resizedFrames);
+      print("Server response: $responseText");
+    } catch (error) {
+      print("Failed to process and send video: $error");
+    }
+  }
+
 
   void _addMessage(types.Message message) {
     setState(() {

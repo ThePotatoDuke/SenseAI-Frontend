@@ -10,7 +10,7 @@ class ApiService {
 
   Future<String> sendText(String text) async {
     final url =
-        Uri.parse("https://96d5-176-41-194-195.ngrok-free.app/analyze/text");
+        Uri.parse("https://a576-176-41-194-195.ngrok-free.app/analyze/text");
 
     final response = await client.post(
       url,
@@ -28,7 +28,7 @@ class ApiService {
 
   Future<String> sendMultipartRequest(String text) async {
     // 1. Use the correct URL (same one that worked in curl)
-    final uri = Uri.parse("https://96d5-176-41-194-195.ngrok-free.app/analyze/full");
+    final uri = Uri.parse("https://a576-176-41-194-195.ngrok-free.app/analyze/full");
 
     // 2. Create the multipart request
     var request = http.MultipartRequest('POST', uri);
@@ -89,7 +89,7 @@ class ApiService {
 
   Future<String> sendImages(List<File> images) async {
     final url =
-        Uri.parse("https://96d5-176-41-194-195.ngrok-free.app/analyze/face");
+        Uri.parse("https://a576-176-41-194-195.ngrok-free.app/analyze/face");
 
     // Create a multipart request
     final request = http.MultipartRequest('POST', url)

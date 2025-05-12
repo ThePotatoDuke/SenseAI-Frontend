@@ -88,7 +88,7 @@ class VideoProcessor {
     return outputFile;
   }
 
-  Future<void> processVideo(String videoPath) async {
+  Future<List<File>> processVideo(String videoPath) async {
     try {
       final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
       final String framesDirectory = '${appDocumentsDir.path}/frames/';
@@ -106,23 +106,21 @@ class VideoProcessor {
       if (framePaths.isNotEmpty) {
         print("Frames saved at: $framePaths");
 
-        // Resize extracted frames - wait for ALL to complete
+        // Resize extracted frames
         List<File> resizedFrames = await Future.wait(
           framePaths.map((path) async {
             return await resizeImageWithFFmpegKit(File(path));
           }),
         );
 
-        // Now send all resized frames
-        try {
-          final responseText = await apiService.sendImages(resizedFrames);
-          print("Server response: $responseText");
-        } catch (error) {
-          print("Error sending resized frames: $error");
-        }
+        return resizedFrames;
+      } else {
+        throw Exception("No frames were extracted.");
       }
     } catch (e) {
       print("Error processing video: $e");
+      rethrow;
     }
   }
+
 }
