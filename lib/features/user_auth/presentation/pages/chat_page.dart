@@ -7,8 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -116,6 +114,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               );
             }
             _postBotThinking();
+            apiService.sendMultipartRequest(text:transcript, audioPath: recordingPath).then((responseBody) {
+              try {
+                final decoded = jsonDecode(responseBody);
+                final llamaResponse =
+                    decoded['llamaResponse'] ?? 'No response received';
+                _updateLastMessage(llamaResponse);
+              } catch (e) {
+                _updateLastMessage("Error: Failed to parse response");
+              }
+            }).catchError((error) {
+              _updateLastMessage("Error: Failed to get response: $error");
+            });
 
           }
         } else {
@@ -190,7 +200,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
 
         // Step 3: Send processed data to server
-        apiService.sendMultipartRequest(text: processedData.transcript).then((responseBody) {
+        apiService.sendMultipartRequest(text: processedData.transcript, audioPath: processedData.audioPath, imageFiles: processedData.resizedFrames).then((responseBody) {
           try {
             final decoded = jsonDecode(responseBody);
             final llamaResponse =
