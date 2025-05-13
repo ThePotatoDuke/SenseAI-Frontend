@@ -1,16 +1,21 @@
-import 'dart:io';
-
 import 'dart:async';
+import 'dart:io';
 
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_session.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:path_provider/path_provider.dart';
 
-
 import '../user_auth/data/api_service.dart';
+import 'audio_processor.dart';
 
+class ProcessedVideoData {
+  final List<File> resizedFrames;
+  final String audioPath;
+  final String transcript;
 
+  ProcessedVideoData({required this.resizedFrames, required this.audioPath, required this.transcript});
+}
 class VideoProcessor {
   final ApiService apiService;
 
@@ -88,36 +93,45 @@ class VideoProcessor {
     return outputFile;
   }
 
-  Future<List<File>> processVideo(String videoPath) async {
+  Future<ProcessedVideoData> processVideo(String videoPath) async {
     try {
-
       // Extract audio
       final String? audioPath = await extractAudio(videoPath);
-      if (audioPath != null) {
-        print("Audio saved at: $audioPath");
+      if (audioPath == null) {
+        throw Exception("Audio extraction failed.");
       }
+      print("Audio saved at: $audioPath");
 
-      // Extract frames
+      // Extract and resize frames
       final List<String> framePaths = await extractFrames(videoPath);
-
-      if (framePaths.isNotEmpty) {
-        print("Frames saved at: $framePaths");
-
-        // Resize extracted frames
-        List<File> resizedFrames = await Future.wait(
-          framePaths.map((path) async {
-            return await resizeImageWithFFmpegKit(File(path));
-          }),
-        );
-
-        return resizedFrames;
-      } else {
+      if (framePaths.isEmpty) {
         throw Exception("No frames were extracted.");
       }
+
+      final List<File> resizedFrames = await Future.wait(
+        framePaths.map((path) async => await resizeImageWithFFmpegKit(File(path))),
+      );
+
+      // Generate the transcript if audioPath is not null
+      String transcript = '';
+      if (audioPath.isNotEmpty) {
+        transcript = await transcribeAudio(audioPath);
+
+      }
+
+      // Return the processed video data with resized frames, audioPath, and transcript
+      return ProcessedVideoData(
+        resizedFrames: resizedFrames,
+        audioPath: audioPath,
+        transcript: transcript,
+      );
     } catch (e) {
       print("Error processing video: $e");
       rethrow;
     }
   }
+
+
+
 
 }

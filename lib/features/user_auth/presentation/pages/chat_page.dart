@@ -49,7 +49,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _processor = VideoProcessor(apiService);
-
   }
 
   final AudioRecorder audioRecorder = AudioRecorder();
@@ -58,40 +57,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   bool isRecordingAudio = false; // For audio recording
   bool isRecordingVideo = false; // For video recording
 
-  int _selectedCameraIndex = 0;
-  bool _isInitialized = false;
-
   bool isPlaying = false;
   String? recordingPath;
-  final AudioPlayer audioPlayer = AudioPlayer();
-
 
 
   @override
   void dispose() {
-    // Dispose audioPlayer to avoid memory leaks
-    audioPlayer.dispose();
+
     WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
     super.dispose();
-  }
-
-  Future<void> _initializeCamera() async {
-    // Fetch the available cameras
-    final cameras = await availableCameras();
-    setState(() {
-      _cameras = cameras;
-      controller = CameraController(
-        _cameras![0], // You can change this index for front/back camera
-        ResolutionPreset.high,
-      );
-    });
-
-    // Initialize the controller
-    await controller!.initialize();
-    setState(() {
-      _isInitialized = true;
-    });
   }
 
   @override
@@ -129,6 +104,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               recordingPath = filePath;
             });
             addMessageFromPath(recordingPath!);
+            var transcript = await transcribeAudio(recordingPath!);
+            if (transcript.isNotEmpty) {
+              _addMessage(
+                types.TextMessage(
+                  author: _user,
+                  id: DateTime.now().toIso8601String(),
+                  text: transcript,
+                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                ),
+              );
+            }
+            _postBotThinking();
+
           }
         } else {
           if (await audioRecorder.hasPermission()) {
@@ -155,59 +143,71 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     return IconButton(
       onPressed: () async {
         // Call the function to navigate and get the video
-        await navigateAndGetVideo(context);
+        await handleVideoProcessingAndSending(context);
+
       },
       icon: Icon(Icons.camera),
     );
   }
 
-  Future<void> navigateAndGetVideo(BuildContext context) async {
-    // Fetch the list of available cameras
+  Future<String?> navigateAndGetVideo(BuildContext context) async {
     final cameras = await availableCameras();
-
-    // Ensure cameras are available before navigating
     if (cameras.isEmpty) {
       print('No cameras available');
-      return;
+      return null;
     }
 
-    // Navigate to the VideoScreen and get the video path when done
-    final videoPath = await Navigator.push(
+    return await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => VideoScreen(cameras)),
     );
+  }
 
-    // Add the message directly without file selection
+
+  Future<void> handleVideoProcessingAndSending(BuildContext context) async {
+    final videoPath = await navigateAndGetVideo(context);
     if (videoPath != null) {
       addMessageFromPath(videoPath);
-      _processor.processVideo(videoPath);
 
-      final audioPath = await _processor.extractAudio(videoPath);
-      if (audioPath.isNotEmpty) {
-        final transcript = await transcribeAudio(audioPath);
-        // Optionally display it in the chat
-        _addMessage(
-          types.TextMessage(
-            author: _user,
-            id: DateTime.now().toIso8601String(),
-            text: transcript,
-            createdAt: DateTime.now().millisecondsSinceEpoch,
-          ),
-        );
+      try {
+        print("THE PATH IS " + videoPath);
+
+        // Step 1: Process the video
+        final processedData = await _processor.processVideo(videoPath);
+
+        // Step 2: If audio exists, get transcript
+        if (processedData.transcript.isNotEmpty) {
+          _addMessage(
+            types.TextMessage(
+              author: _user,
+              id: DateTime.now().toIso8601String(),
+              text: processedData.transcript,
+              createdAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
+        }
+        _postBotThinking();
+
+
+        // Step 3: Send processed data to server
+        apiService.sendMultipartRequest(text: processedData.transcript).then((responseBody) {
+          try {
+            final decoded = jsonDecode(responseBody);
+            final llamaResponse =
+                decoded['llamaResponse'] ?? 'No response received';
+            _updateLastMessage(llamaResponse);
+          } catch (e) {
+            _updateLastMessage("Error: Failed to parse response");
+          }
+        }).catchError((error) {
+          _updateLastMessage("Error: Failed to get response: $error");
+        });
+
+      } catch (e) {
+        print("Error handling video processing or sending: $e");
       }
     }
   }
-
-  void processAndSendVideo(String videoPath) async {
-    try {
-      final resizedFrames = await _processor.processVideo(videoPath);
-      final responseText = await apiService.sendImages(resizedFrames);
-      print("Server response: $responseText");
-    } catch (error) {
-      print("Failed to process and send video: $error");
-    }
-  }
-
 
   void _addMessage(types.Message message) {
     setState(() {
@@ -215,12 +215,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     });
   }
 
-
-
   // FirebaseAuth.instance.signOut();
   //               Navigator.pushNamed(context, "/login");
   //               showToast(message: "Successfully signed out");
-
 
   void addMessageFromPath(String filePath) {
     // Check if the video path is not empty (or any other condition you want)
@@ -230,7 +227,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         createdAt: DateTime.now().millisecondsSinceEpoch,
         id: randomString(),
         name: 'Video Recorded',
-        size: 0, // You can set size if needed
+        size: 0,
+        // You can set size if needed
         uri: filePath, // Use the video path directly
       );
 
@@ -239,10 +237,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-
-
   void _handleMessageTap(BuildContext context, types.Message message) async {
-
     if (message is types.FileMessage) {
       var localPath = message.uri;
 
@@ -264,6 +259,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _messages[index] = updatedMessage;
     });
   }
+  void _postBotThinking(){
+    final botMessage = types.TextMessage(
+      author: _bot,
+      // Bot as author
+      createdAt: DateTime.now().millisecondsSinceEpoch,
+      id: randomString(),
+      text: "Thinking...",
+      // Placeholder text
+    );
+    _addMessage(botMessage);
+
+  }
 
   void _handleSendPressed(types.PartialText message) {
     final textMessage = types.TextMessage(
@@ -275,33 +282,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
     _addMessage(textMessage);
 
-    final botMessage = types.TextMessage(
-      author: _bot, // Bot as author
-      createdAt: DateTime.now().millisecondsSinceEpoch,
-      id: randomString(),
-      text: "Thinking...", // Placeholder text
-      metadata: {"isLoading": true}, // Set loading state
-    );
-
-    _addMessage(botMessage);
+    _postBotThinking();
 
     final client = http.Client(); // Or http.BrowserClient() for web
 
-    apiService.sendMultipartRequest(message.text).then((responseText) {
-      _updateLastMessage(responseText);
+    apiService.sendMultipartRequest(text: message.text).then((responseBody) {
+      try {
+        final decoded = jsonDecode(responseBody);
+        final llamaResponse =
+            decoded['llamaResponse'] ?? 'No response received';
+        _updateLastMessage(llamaResponse);
+      } catch (e) {
+        _updateLastMessage("Error: Failed to parse response");
+      }
     }).catchError((error) {
-      _updateLastMessage(error.toString());
+      _updateLastMessage("Error: Failed to get response: $error");
     });
-
-    // apiService.sendText(message.text).then((responseText) {
-    //   _updateLastMessage(responseText);
-    // }).catchError((error) {
-    //   _updateLastMessage("Error: Failed to get response.");
-    // });
   }
 
   void _updateLastMessage(String newText) {
-    final index = _messages.length - 1; // Get last message index
+    final index = 0; // Get last message index
 
     if (index >= 0 && _messages[index] is types.TextMessage) {
       final updatedMessage = (_messages[index] as types.TextMessage).copyWith(
