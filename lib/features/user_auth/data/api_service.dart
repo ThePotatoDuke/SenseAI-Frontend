@@ -38,11 +38,11 @@ class ApiService {
     var request = http.MultipartRequest('POST', uri);
 
 
-    final stressLevels = stressSpots.map((spot) => spot.y.toInt()).toList();
+    final stressLevels = HRSpots.map((spot) => spot.y.toInt()).toList();
     final stressJson = jsonEncode(stressLevels);
     request.fields['stress_array'] = stressJson;
 
-    final heartRateLevels = heartRateSpots.map((spot) => spot.y.toInt()).toList();
+    final heartRateLevels = HRSpots.map((spot) => spot.y.toInt()).toList();
     final heartRateJson = jsonEncode(heartRateLevels);
     request.fields['hr_array'] = heartRateJson;
 

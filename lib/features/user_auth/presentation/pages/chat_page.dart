@@ -2,8 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
@@ -15,6 +18,7 @@ import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart'
 import 'package:senseai/features/utils/video_processor.dart';
 
 import '../../../utils/audio_processor.dart';
+import '../../data/GadgetBridgeListener.dart';
 import '../../data/api_service.dart';
 
 String randomString() {
@@ -29,8 +33,9 @@ class ChatPage extends StatefulWidget {
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
-
+const platform = MethodChannel('your.app/gadgetbridge');
 List<CameraDescription>? _cameras;
+const myBandAddress = "DB:FA:96:E5:A6:2C";
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
@@ -42,12 +47,24 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   final apiService = ApiService(http.Client());
   late VideoProcessor _processor;
-
+  var stressLevel = 0;
   @override
   void initState() {
     super.initState();
     _processor = VideoProcessor(apiService);
+
+    GadgetbridgeListener.startListening((uuid, value) {
+      print("BLE Notification - UUID: $uuid, Value: $value");
+
+      if (uuid == "00002a37-0000-1000-8000-00805f9b34fb") {
+        setState(() {
+          stressLevel = value; // Rename if you'd like to heartRate
+        });
+      }
+    });
   }
+
+
 
   final AudioRecorder audioRecorder = AudioRecorder();
   CameraController? controller;
@@ -67,6 +84,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  Future<void> startHeartRateMeasurement() async {
+    try {
+      await platform.invokeMethod('startSync', {'device_address': 'DB:FA:96:E5:A6:2C'});
+    } on PlatformException catch (e) {
+      print("Failed to invoke intent: '${e.message}'.");
+    }
+  }
+
+
+
+
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -74,6 +103,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           actions: [
             _recordingButton(),
             _videoRecordingButton(),
+            _heartRateButton(),
           ],
         ),
         body: Column(
@@ -149,6 +179,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
   }
 
+  _heartRateButton(){
+    return IconButton(
+      icon: Icon(Icons.favorite),
+      tooltip: 'Start Heart Rate',
+      onPressed: () => startHeartRateMeasurement(),
+    );
+  }
   Widget _videoRecordingButton() {
     return IconButton(
       onPressed: () async {

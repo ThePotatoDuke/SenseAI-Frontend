@@ -18,6 +18,9 @@ Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   cameras = await availableCameras();
+
+
+
   if (kIsWeb) {
     await Firebase.initializeApp(
       options: FirebaseOptions(

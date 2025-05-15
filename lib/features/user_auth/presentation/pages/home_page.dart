@@ -46,11 +46,11 @@ class _HomePageState extends State<HomePage> {
     );
     await Future.delayed(const Duration(seconds: 2));
 
-    await fetchStressData();
-    await fetchHeartRateData();
+    await fetchHR();
+
   }
 
-  Future<void> fetchStressData() async {
+  Future<void> fetchHR() async {
     if (await Permission.manageExternalStorage.isGranted) {
       final path = '/storage/emulated/0/Download/Gadgetbridge.db';
       final file = File(path);
@@ -58,19 +58,19 @@ class _HomePageState extends State<HomePage> {
 
       final db = await openDatabase(path);
       final result = await db.rawQuery('''
-        SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, stress 
-        FROM HUAMI_STRESS_SAMPLE 
+        SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, HEART_RATE 
+        FROM MI_BAND_ACTIVITY_SAMPLE 
         ORDER BY timestamp ASC 
         LIMIT 8;
       ''');
       await db.close();
 
-      stressSpots.clear();
+      HRSpots.clear();
       for (var i = 0; i < result.length; i++) {
         final data = result[i];
-        final stressLevel = data['STRESS'];
+        final stressLevel = data['HEART_RATE'];
         if (stressLevel != null) {
-          stressSpots.add(FlSpot(i.toDouble(), (stressLevel as int).toDouble()));
+          HRSpots.add(FlSpot(i.toDouble(), (stressLevel as int).toDouble()));
         }
       }
 
@@ -80,37 +80,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> fetchHeartRateData() async {
-    final path = '/storage/emulated/0/Download/Gadgetbridge.db';
-    final file = File(path);
-    if (!await file.exists()) throw Exception('Database not found at $path');
-
-    final db = await openDatabase(path);
-    final result = await db.rawQuery('''
-      SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, heart_rate 
-      FROM MI_BAND_ACTIVITY_SAMPLE 
-      WHERE heart_rate <> 255 AND heart_rate <> 0 
-      ORDER BY timestamp ASC 
-      LIMIT 8;
-    ''');
-    await db.close();
-
-    heartRateSpots.clear();
-    for (var i = 0; i < result.length; i++) {
-      final heartRate = result[i]['HEART_RATE'];
-      if (heartRate != null) {
-        heartRateSpots.add(FlSpot(i.toDouble(), (heartRate as int).toDouble()));
-      }
-    }
-
-    setState(() {});
-  }
-
   @override
   void initState() {
     super.initState();
-    fetchStressData();
-    fetchHeartRateData();
+    fetchHR();
   }
 
   Widget buildSectionTitle(String text) {
@@ -178,18 +151,10 @@ class _HomePageState extends State<HomePage> {
 
               ),
               const SizedBox(height: 28),
-              buildSectionTitle('Stress Chart'),
-              buildLineChartCard(
-                title: 'Stress',
-                spots: stressSpots,
-                onRefresh: refreshData,
-                gradientColors: [Colors.blueAccent, Colors.cyan],
-              ),
-              const SizedBox(height: 28),
               buildSectionTitle('Heart Rate Chart'),
               buildLineChartCard(
                 title: 'Heart Rate',
-                spots: heartRateSpots,
+                spots: HRSpots,
                 onRefresh: refreshData,
                 gradientColors: [Colors.redAccent, Colors.orange],
               ),
