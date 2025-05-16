@@ -67,6 +67,7 @@ dependencies:
 
 
   flutter_chat_types: any
+  cloud_firestore: ^5.6.7
 dev_dependencies:
   flutter_test:
     sdk: flutter
