@@ -158,7 +158,9 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                      MaterialPageRoute(
+                        builder: (context) => ChatPage(chatId: randomString()),
+                      ),
                     );
                   },
                   icon: const Icon(

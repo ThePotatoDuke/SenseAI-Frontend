@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../user_auth/presentation/pages/login_page.dart';
+import '../../user_auth/presentation/pages/main_screen.dart';
+
 class SplashScreen extends StatefulWidget {
   final Widget? child;
   const SplashScreen({super.key, this.child});
@@ -43,20 +46,24 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   }
-
   void _checkAuthentication() async {
-    // Delay for a short period to simulate splash screen
     await Future.delayed(Duration(seconds: 2));
 
-    // Check if a user is logged in
     final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // Navigate to HomePage if user is logged in
-      Navigator.pushReplacementNamed(context, '/main');
+      // Navigate to MainScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainScreen()),
+      );
     } else {
-      // Navigate to LoginPage if user is not logged in
-      Navigator.pushReplacementNamed(context, '/login');
+      // Navigate to LoginPage
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
     }
   }
+
 }

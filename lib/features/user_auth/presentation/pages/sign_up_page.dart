@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:senseai/features/user_auth/firebase_auth_implementation/firebase_auth_services.dart';
+import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/login_page.dart';
 import 'package:senseai/features/user_auth/presentation/widgets/form_container_widget.dart';
 import 'package:senseai/global/common/toast.dart';
@@ -145,7 +146,7 @@ class _SignUpPageState extends State<SignUpPage> {
     });
     if (user != null) {
       showToast(message: "User is successfully created");
-      Navigator.pushNamed(context, "/home");
+      Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
     } else {
       showToast(message: "Some error happend");
     }
