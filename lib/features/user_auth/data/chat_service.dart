@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+
+import '../presentation/pages/chat_page.dart';
 
 class ChatService {
   final _auth = FirebaseAuth.instance;
@@ -77,6 +82,47 @@ class ChatService {
       }).toList();
     });
   }
+
+  Future<void> sendVideoMessage(String videoPath, String chatId) async {
+    final uid = _auth.currentUser!.uid;
+    final videoFile = File(videoPath);
+
+    final storageRef = FirebaseStorage.instance
+        .ref()
+        .child('videos')
+        .child(uid)
+        .child(chatId)
+        .child('${randomString()}.mp4');
+
+    await storageRef.putFile(videoFile);
+    final downloadUrl = await storageRef.getDownloadURL();
+
+    final messageId = randomString();
+    final messageRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId);
+
+    await messageRef.set({
+      'sender': uid,
+      'type': 'video',
+      'content': downloadUrl,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .update({
+      'lastMessage': '📹 Video message',
+    });
+  }
+
 
   /// Load list of existing chat sessions
   Stream<List<Map<String, dynamic>>> getChatSessions() {

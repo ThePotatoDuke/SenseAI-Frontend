@@ -36,8 +36,6 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
-
-
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
 
@@ -51,6 +49,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final ChatService _chatService = ChatService();
 
   late final types.User _user;
+
   @override
   void initState() {
     super.initState();
@@ -67,10 +66,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   bool isPlaying = false;
   String? recordingPath;
 
-
   @override
   void dispose() {
-
     WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
     super.dispose();
@@ -79,58 +76,58 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text("Chat"),
-      actions: [
-        _recordingButton(),
-        _videoRecordingButton(),
-      ],
-    ),
-    body: StreamBuilder<List<types.TextMessage>>(
-      stream: _chatService.getMessages(widget.chatId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final firestoreMessages = snapshot.data ?? [];
-        final mergedMessages = _mergeMessages(firestoreMessages, _messages);
-
-        if (!listEquals(_messages, mergedMessages)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _messages
-                ..clear()
-                ..addAll(mergedMessages);
-            });
-          });
-        }
-
-        return Column(
-          children: [
-            Expanded(
-              child: Chat(
-                messages: _messages,
-                onMessageTap: _handleMessageTap,
-                onSendPressed: _handleSendPressed,
-                user: _user,
-              ),
-            ),
+        appBar: AppBar(
+          title: const Text("Chat"),
+          actions: [
+            _recordingButton(),
+            _videoRecordingButton(),
           ],
-        );
-      },
-    ),
-  );
+        ),
+        body: StreamBuilder<List<types.TextMessage>>(
+          stream: _chatService.getMessages(widget.chatId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final firestoreMessages = snapshot.data ?? [];
+            final mergedMessages = _mergeMessages(firestoreMessages, _messages);
+
+            if (!listEquals(_messages, mergedMessages)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                setState(() {
+                  _messages
+                    ..clear()
+                    ..addAll(mergedMessages);
+                });
+              });
+            }
+
+            return Column(
+              children: [
+                Expanded(
+                  child: Chat(
+                    messages: _messages,
+                    onMessageTap: _handleMessageTap,
+                    onSendPressed: _handleSendPressed,
+                    user: _user,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
 
   List<types.Message> _mergeMessages(
-      List<types.Message> firestoreMessages,
-      List<types.Message> localMessages,
-      ) {
+    List<types.Message> firestoreMessages,
+    List<types.Message> localMessages,
+  ) {
     final Map<String, types.Message> merged = {
       for (final msg in firestoreMessages) msg.id: msg,
     };
@@ -139,11 +136,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       merged[localMsg.id] = localMsg;
     }
 
-
     return merged.values.toList()
       ..sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
   }
-
 
   _recordingButton() {
     return IconButton(
@@ -168,7 +163,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               );
             }
             _postBotThinking();
-            apiService.sendMultipartRequest(text:transcript, audioPath: recordingPath).then((responseBody) {
+            apiService
+                .sendMultipartRequest(
+                    text: transcript, audioPath: recordingPath)
+                .then((responseBody) {
               try {
                 final decoded = jsonDecode(responseBody);
                 final llamaResponse =
@@ -180,7 +178,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             }).catchError((error) {
               _updateLastMessage("Error: Failed to get response: $error");
             });
-
           }
         } else {
           if (await audioRecorder.hasPermission()) {
@@ -208,7 +205,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       onPressed: () async {
         // Call the function to navigate and get the video
         await handleVideoProcessingAndSending(context);
-
       },
       icon: Icon(Icons.camera),
     );
@@ -227,14 +223,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> deleteLocalFile(String path) async {
+    final file = File(path);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
 
   Future<void> handleVideoProcessingAndSending(BuildContext context) async {
     final videoPath = await navigateAndGetVideo(context);
     if (videoPath != null) {
       addMessageFromPath(videoPath);
-
+      await _chatService.sendVideoMessage(videoPath, widget.chatId);
+      final newPath = '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId/${p.basename(videoPath)}';
+      await File(videoPath).copy(newPath); // or move
       try {
-        print("THE PATH IS " + videoPath);
 
         // Step 1: Process the video
         final processedData = await _processor.processVideo(videoPath);
@@ -252,9 +255,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         }
         _postBotThinking();
 
-
         // Step 3: Send processed data to server
-        apiService.sendMultipartRequest(text: processedData.transcript, audioPath: processedData.audioPath, imageFiles: processedData.resizedFrames).then((responseBody) {
+        apiService
+            .sendMultipartRequest(
+                text: processedData.transcript,
+                audioPath: processedData.audioPath,
+                imageFiles: processedData.resizedFrames)
+            .then((responseBody) {
           try {
             final decoded = jsonDecode(responseBody);
             final llamaResponse =
@@ -266,12 +273,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         }).catchError((error) {
           _updateLastMessage("Error: Failed to get response: $error");
         });
-
       } catch (e) {
         print("Error handling video processing or sending: $e");
       }
     }
   }
+
 
   void _addMessage(types.Message message) {
     setState(() {
@@ -310,7 +317,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-  void _postBotThinking(){
+  void _postBotThinking() {
     final botMessage = types.TextMessage(
       author: _bot,
       // Bot as author
@@ -320,7 +327,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       // Placeholder text
     );
     _addMessage(botMessage);
-
   }
 
   void _handleSendPressed(types.PartialText message) async {
@@ -354,10 +360,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
     _postBotThinking();
 
-    apiService.sendMultipartRequest(text: message.text).then((responseBody) async {
+    apiService
+        .sendMultipartRequest(text: message.text)
+        .then((responseBody) async {
       try {
         final decoded = jsonDecode(responseBody);
-        final llamaResponse = decoded['llamaResponse'] ?? 'No response received';
+        final llamaResponse =
+            decoded['llamaResponse'] ?? 'No response received';
 
         final botMessage = types.TextMessage(
           author: _bot,
@@ -381,9 +390,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _updateLastMessage("Error: Failed to get response: $error");
     });
   }
-
-
-
 
   void _updateLastMessage(String newText) {
     final index = 0; // Get last message index
