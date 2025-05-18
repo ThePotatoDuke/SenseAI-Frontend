@@ -59,6 +59,24 @@ class ChatService {
       'lastUpdated': FieldValue.serverTimestamp(),
     });
   }
+  Future<void> deleteChatSession(String chatId) async {
+    final uid = _auth.currentUser!.uid;
+
+    final chatRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId);
+
+    // Delete messages first (if needed)
+    final messages = await chatRef.collection('messages').get();
+    for (final doc in messages.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete chat session
+    await chatRef.delete();
+  }
 
   Future<void> sendFileMessageLocalOnly({
     required String filePath,
