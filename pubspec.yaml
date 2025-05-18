@@ -63,9 +63,11 @@ dependencies:
   camera_android: ^0.10.10
   sqflite: ^2.3.2
   permission_handler: ^11.3.1
+  flutter_dotenv: ^5.0.2
 
 
   flutter_chat_types: any
+  cloud_firestore: ^5.6.7
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -97,6 +99,7 @@ flutter:
   assets:
     - assets/placeholder.jpg
     - assets/placeholder.wav
+    - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

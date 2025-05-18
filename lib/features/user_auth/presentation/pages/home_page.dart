@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../../../utils/globals.dart';
 import '../widgets/line_chart_widget.dart';
 import 'chat_page.dart';
 
@@ -18,8 +19,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<FlSpot> stressSpots = [];
-  List<FlSpot> heartRateSpots = [];
+
 
   Future<void> _sendIntent(String action, {Map<String, dynamic>? extras}) async {
     final intent = AndroidIntent(
@@ -158,7 +158,9 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                      MaterialPageRoute(
+                        builder: (context) => ChatPage(chatId: randomString()),
+                      ),
                     );
                   },
                   icon: const Icon(

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:senseai/features/user_auth/presentation/pages/chat_page.dart';
+import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
 import 'package:senseai/features/user_auth/presentation/pages/sign_up_page.dart';
 import 'package:senseai/features/user_auth/presentation/widgets/form_container_widget.dart';
 import 'package:senseai/global/common/toast.dart';
@@ -188,7 +189,8 @@ class _LoginPageState extends State<LoginPage> {
 
     if (user != null) {
       showToast(message: "User is successfully signed in");
-      Navigator.pushNamed(context, "/home");
+      Navigator.push(context, MaterialPageRoute(builder: (_) => HomePage()));
+
     } else {
       showToast(message: "some error occured");
     }
@@ -213,7 +215,7 @@ class _LoginPageState extends State<LoginPage> {
         await _firebaseAuth.signInWithCredential(credential);
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => ChatPage()),
+          MaterialPageRoute(builder: (context) => HomePage()),
           (route) => false,
         );
       }
