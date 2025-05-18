@@ -6,6 +6,7 @@ import 'package:wave/config.dart';
 import 'package:wave/wave.dart';
 
 import '../../data/chat_service.dart';
+import 'chat_page.dart';
 
 class PreviousChatsScreen extends StatelessWidget {
   final ChatService _chatService = ChatService();
@@ -89,31 +90,33 @@ class PreviousChatsScreen extends StatelessWidget {
                             'No messages yet';
                     final String chatId = (session['chatId'] as String?) ?? '';
 
-                    final Widget purpleBackground = Container(
-                      width: double.infinity,
-                      color: primaryColor,
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.only(right: 20),
-                      child: const Icon(Icons.more_vert,
-                          color: Colors.white, size: 30),
-                    );
 
                     return Slidable(
-                        key: Key(chatId),
-                        endActionPane: ActionPane(
-                          motion: const ScrollMotion(),
-                          // Animation when sliding
-                          children: [
-                            SlidableAction(
-                              onPressed: (context) {
-                                // Handle your action here, e.g. delete or more options
-                              },
-                              backgroundColor: primaryColor,
-                              foregroundColor: Colors.white,
-                              icon: Icons.more_vert,
+                      key: Key(chatId),
+                      endActionPane: ActionPane(
+                        motion: const ScrollMotion(),
+                        children: [
+                          SlidableAction(
+                            onPressed: (context) {
+                              // Your existing slidable action (e.g., more options)
+                            },
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            icon: Icons.more_vert,
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          // Handle tap here, e.g., open chat screen or any action
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatPage(chatId: chatId),
                             ),
-                          ],
-                        ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(15), // matches your message container radius
                         child: IntrinsicHeight(
                           child: Row(
                             children: [
@@ -162,12 +165,11 @@ class PreviousChatsScreen extends StatelessWidget {
                                                 color: Colors.grey,
                                               ),
                                             ),
-                                            // Add some bottom padding so text and button don’t overlap
                                             const SizedBox(height: 24),
                                           ],
                                         ),
                                       ),
-                                      // Positioned delete icon button bottom left
+                                      // Delete button stays independent (so it doesn’t trigger tap on whole row)
                                       Positioned(
                                         bottom: 8,
                                         left: 8,
@@ -193,7 +195,7 @@ class PreviousChatsScreen extends StatelessWidget {
 
                                             if (confirm == true) {
                                               _chatService.deleteChatSession(chatId);
-                                              // Optionally, show a snackbar here to confirm deletion
+                                              // Optionally show snackbar here
                                             }
                                           },
                                           child: Container(
@@ -210,22 +212,19 @@ class PreviousChatsScreen extends StatelessWidget {
                                           ),
                                         ),
                                       ),
-
                                     ],
                                   ),
                                 ),
                               ),
 
-
-                              // Purple icon section
+                              // Purple icon section (also inside InkWell tappable)
                               Container(
                                 decoration: BoxDecoration(
                                   color: primaryColor,
                                 ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
                                 child: Container(
-                                  width: 60, // Narrower width
+                                  width: 60,
                                   decoration: BoxDecoration(
                                     color: primaryColor,
                                     borderRadius: const BorderRadius.only(
@@ -233,34 +232,26 @@ class PreviousChatsScreen extends StatelessWidget {
                                       bottomRight: Radius.circular(15),
                                     ),
                                   ),
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 4),
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
                                           Padding(
-                                            padding: const EdgeInsets.only(
-                                                left: 8.0),
-                                            // Added padding here
-                                            child: Icon(Icons.mic,
-                                                color: Colors.white, size: 24),
+                                            padding: const EdgeInsets.only(left: 8.0),
+                                            child: Icon(Icons.mic, color: Colors.white, size: 24),
                                           ),
                                           Expanded(
                                             child: Align(
                                               alignment: Alignment.centerLeft,
                                               child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 80),
+                                                padding: const EdgeInsets.only(left: 80),
                                                 child: Text(
                                                   'Audio',
-                                                  style: TextStyle(
-                                                      color: Colors.white),
-                                                  overflow:
-                                                      TextOverflow.visible,
+                                                  style: TextStyle(color: Colors.white),
+                                                  overflow: TextOverflow.visible,
                                                   softWrap: false,
                                                 ),
                                               ),
@@ -272,24 +263,18 @@ class PreviousChatsScreen extends StatelessWidget {
                                       Row(
                                         children: [
                                           Padding(
-                                            padding: const EdgeInsets.only(
-                                                left: 8.0),
-                                            // Added padding here
-                                            child: Icon(Icons.chat_bubble,
-                                                color: Colors.white, size: 24),
+                                            padding: const EdgeInsets.only(left: 8.0),
+                                            child: Icon(Icons.chat_bubble, color: Colors.white, size: 24),
                                           ),
                                           Expanded(
                                             child: Align(
                                               alignment: Alignment.centerLeft,
                                               child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 80),
+                                                padding: const EdgeInsets.only(left: 80),
                                                 child: Text(
                                                   'Chat',
-                                                  style: TextStyle(
-                                                      color: Colors.white),
-                                                  overflow:
-                                                      TextOverflow.visible,
+                                                  style: TextStyle(color: Colors.white),
+                                                  overflow: TextOverflow.visible,
                                                   softWrap: false,
                                                 ),
                                               ),
@@ -301,24 +286,18 @@ class PreviousChatsScreen extends StatelessWidget {
                                       Row(
                                         children: [
                                           Padding(
-                                            padding: const EdgeInsets.only(
-                                                left: 8.0),
-                                            // Added padding here
-                                            child: Icon(Icons.photo_camera,
-                                                color: Colors.white, size: 24),
+                                            padding: const EdgeInsets.only(left: 8.0),
+                                            child: Icon(Icons.photo_camera, color: Colors.white, size: 24),
                                           ),
                                           Expanded(
                                             child: Align(
                                               alignment: Alignment.centerLeft,
                                               child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 80),
+                                                padding: const EdgeInsets.only(left: 80),
                                                 child: Text(
                                                   'Photo',
-                                                  style: TextStyle(
-                                                      color: Colors.white),
-                                                  overflow:
-                                                      TextOverflow.visible,
+                                                  style: TextStyle(color: Colors.white),
+                                                  overflow: TextOverflow.visible,
                                                   softWrap: false,
                                                 ),
                                               ),
@@ -332,7 +311,10 @@ class PreviousChatsScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                        ));
+                        ),
+                      ),
+                    );
+
                   },
                 );
               },
