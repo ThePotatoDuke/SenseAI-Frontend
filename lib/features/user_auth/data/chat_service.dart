@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
+import 'package:path/path.dart' as p;
 
 import '../presentation/pages/chat_page.dart';
 
@@ -59,45 +60,12 @@ class ChatService {
     });
   }
 
-
-
-  /// Load past messages for a chat session
-  Stream<List<chat_core.Message>> getMessages(String chatId) {
+  Future<void> sendFileMessageLocalOnly({
+    required String filePath,
+    required String chatId,
+    required String fileType, // "video" or "audio"
+  }) async {
     final uid = _auth.currentUser!.uid;
-
-    return _firestore
-        .collection('users')
-        .doc(uid)
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return chat_core.TextMessage(
-          authorId: doc['sender'] as String,
-          createdAt: (doc['timestamp'] as Timestamp?)?.toDate(),
-          id: doc.id,
-          text: doc['content'] as String,
-        );
-      }).toList();
-    });
-  }
-
-  Future<void> sendVideoMessage(String videoPath, String chatId) async {
-    final uid = _auth.currentUser!.uid;
-    final videoFile = File(videoPath);
-
-    final storageRef = FirebaseStorage.instance
-        .ref()
-        .child('videos')
-        .child(uid)
-        .child(chatId)
-        .child('${randomString()}.mp4');
-
-    await storageRef.putFile(videoFile);
-    final downloadUrl = await storageRef.getDownloadURL();
 
     final messageId = randomString();
     final messageRef = _firestore
@@ -110,8 +78,8 @@ class ChatService {
 
     await messageRef.set({
       'sender': uid,
-      'type': 'video',
-      'content': downloadUrl,
+      'type': fileType, // "video" or "audio"
+      'content': filePath, // local file path
       'timestamp': FieldValue.serverTimestamp(),
     });
 
@@ -121,9 +89,62 @@ class ChatService {
         .collection('chats')
         .doc(chatId)
         .update({
-      'lastMessage': '📹 Video message',
+      'lastMessage': fileType == 'video' ? '📹 Video message' : '🎵 Audio message',
     });
   }
+
+
+  /// Load past messages for a chat session
+  Stream<List<chat_core.Message>> getMessages(String chatId) {
+    final uid = _auth.currentUser!.uid;
+
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        final type = data['type'];
+        final sender = data['sender'];
+        final createdAt = (data['timestamp'] as Timestamp?)?.toDate();
+
+        if (type == 'text') {
+          return chat_core.TextMessage(
+            authorId: sender,
+            createdAt: createdAt ?? DateTime.now(),
+            id: doc.id,
+            text: data['content'] ?? '',
+          );
+        } else if (type == 'video' || type == 'audio') {
+          // Set MIME type accordingly
+          final mimeType = type == 'video' ? 'video/mp4' : 'audio/wav';
+
+          return chat_core.FileMessage(
+            authorId: sender,
+            createdAt: createdAt ?? DateTime.now(),
+            id: doc.id,
+            name: p.basename(data['content'] ?? ''),
+            size: 0, // Optional: add size if you can get it
+            source: data['content'] ?? '',
+            mimeType: mimeType,
+          );
+        } else {
+          return chat_core.TextMessage(
+            authorId: sender,
+            createdAt: createdAt ?? DateTime.now(),
+            id: doc.id,
+            text: '[Unsupported message type]',
+          );
+        }
+      }).toList();
+    });
+  }
+
 
 
   /// Load list of existing chat sessions

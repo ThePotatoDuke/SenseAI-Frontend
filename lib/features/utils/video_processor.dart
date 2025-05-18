@@ -115,7 +115,8 @@ class VideoProcessor {
       // Generate the transcript if audioPath is not null
       String transcript = '';
       if (audioPath.isNotEmpty) {
-        transcript = await transcribeAudio(audioPath);
+        // transcript = await transcribeAudio(audioPath);
+        transcript ="hello transcript place holder"; //CHANGEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
       }
 

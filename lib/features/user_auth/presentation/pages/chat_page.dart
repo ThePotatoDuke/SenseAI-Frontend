@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
+import 'package:flyer_chat_file_message/flyer_chat_file_message.dart';
+import 'package:flyer_chat_text_message/flyer_chat_text_message.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
 import 'package:path/path.dart' as p;
@@ -46,6 +48,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     chat_core.User(id: 'user1'),
     chat_core.User(id: 'bot'),
   ];
+  bool _isBotThinking = false;
 
   Future<chat_core.User?> resolveUser(chat_core.UserID id) async {
     if (_user.id == id) return _user;
@@ -137,17 +140,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     chatController: _chatController,
                     currentUserId: _user.id,
                     resolveUser: resolveUser,
-                    onMessageSend: (text) {
-                      _chatController.insertMessage(
-                        chat_core.TextMessage(
-                          id: randomString(),
-                          authorId: _user.id,
-                          createdAt: DateTime.now().toUtc(),
-                          text: text,
-                        ),
-                      );
-                    },
-                  ),
+                    onMessageSend: _isBotThinking ? null : _handleSendPressed,
+
+                    builders: Builders(
+                      fileMessageBuilder: (context, message, index) =>
+                          FlyerChatFileMessage(message: message, index: index),
+                      textMessageBuilder: (context, message, index) =>
+                          FlyerChatTextMessage(
+                            message: message,
+                            index: index,
+                            showStatus: true,
+                          ),
+                    ),
+                    onMessageTap: _handleMessageTap,
+                  )
                 ),
               ],
             );
@@ -167,9 +173,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       merged[localMsg.id] = localMsg;
     }
 
-    return merged.values.toList()
-      ..sort((a, b) =>
-          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+    return merged.values.toList();
   }
 
   _recordingButton() {
@@ -183,6 +187,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               recordingPath = filePath;
             });
             addMessageFromPath(recordingPath!);
+            await _chatService.sendFileMessageLocalOnly(
+              filePath: filePath,
+              chatId: widget.chatId,
+              fileType: 'audio',
+            );
             var transcript = await transcribeAudio(recordingPath!);
             if (transcript.isNotEmpty) {
               _addMessage(
@@ -264,17 +273,43 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   Future<void> handleVideoProcessingAndSending(BuildContext context) async {
     final videoPath = await navigateAndGetVideo(context);
+    await _chatService.sendFileMessageLocalOnly(
+      filePath: videoPath!,
+      chatId: widget.chatId,
+      fileType: 'video',
+    );
     if (videoPath != null) {
-      addMessageFromPath(videoPath);
-      await _chatService.sendVideoMessage(videoPath, widget.chatId);
-      final newPath =
-          '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId/${p.basename(videoPath)}';
-      await File(videoPath).copy(newPath); // or move
+      // Step 1: Add video message locally
+      final videoMessage = chat_core.FileMessage(
+        authorId: _user.id,
+        id: DateTime.now().toIso8601String(),
+        createdAt: DateTime.now().toUtc(),
+        name: p.basename(videoPath),
+        size: await File(videoPath).length(),
+        source: videoPath,
+        mimeType: 'video/mp4', // or get actual mime type if needed
+      );
+      _addMessage(videoMessage);
+
+      final newDirPath =
+          '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId';
+
+      final newFilePath = '$newDirPath/${p.basename(videoPath)}';
+
+// Create directory if it doesn't exist
+      final newDir = Directory(newDirPath);
+      if (!await newDir.exists()) {
+        await newDir.create(recursive: true);
+      }
+
+// Now copy the file
+      await File(videoPath).copy(newFilePath);
+
       try {
-        // Step 1: Process the video
+        // Step 3: Process the video
         final processedData = await _processor.processVideo(videoPath);
 
-        // Step 2: If audio exists, get transcript
+        // Step 4: If transcript exists, add text message
         if (processedData.transcript.isNotEmpty) {
           _addMessage(
             chat_core.TextMessage(
@@ -285,26 +320,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             ),
           );
         }
+
         _postBotThinking();
 
-        // Step 3: Send processed data to server
-        apiService
-            .sendMultipartRequest(
-                text: processedData.transcript,
-                audioPath: processedData.audioPath,
-                imageFiles: processedData.resizedFrames)
-            .then((responseBody) {
-          try {
-            final decoded = jsonDecode(responseBody);
-            final llamaResponse =
-                decoded['llamaResponse'] ?? 'No response received';
-            _updateLastMessage(llamaResponse);
-          } catch (e) {
-            _updateLastMessage("Error: Failed to parse response");
-          }
-        }).catchError((error) {
-          _updateLastMessage("Error: Failed to get response: $error");
-        });
+        // Step 5: Send processed data to server (API call)
+        final responseBody = await apiService.sendMultipartRequest(
+          text: processedData.transcript,
+          audioPath: processedData.audioPath,
+          imageFiles: processedData.resizedFrames,
+        );
+
+        final decoded = jsonDecode(responseBody);
+        final llamaResponse =
+            decoded['llamaResponse'] ?? 'No response received';
+        _updateLastMessage(llamaResponse);
+
+        // Here you could send video message to backend if needed
+        // await _chatService.sendVideoMessage(newPath, widget.chatId);
       } catch (e) {
         print("Error handling video processing or sending: $e");
       }
@@ -315,50 +347,77 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     setState(() {
       _messages.insert(0, message);
     });
+    _chatController.insertMessage(message);
   }
 
   // FirebaseAuth.instance.signOut();
   //               Navigator.push(context, MaterialPageRoute(builder: (_) => LoginPage()));
   //               showToast(message: "Successfully signed out");
 
-  void addMessageFromPath(String filePath) {
+  void addMessageFromPath(String filePath) async {
     if (filePath.isNotEmpty) {
+      final file = File(filePath);
+      final size = await file.length();
+
       final message = chat_core.FileMessage(
         authorId: _user.id,
-        // chat_core uses authorId (String)
         createdAt: DateTime.now().toUtc(),
-        // createdAt is DateTime
         id: randomString(),
-        name: 'Video Recorded',
-        size: 0,
-        // update if you know file size
-        source: filePath, // or FileType.audio for audio files
+        name: p.basename(filePath),
+        size: size,
+        source: filePath,
+        mimeType: 'video/mp4',
       );
 
       _addMessage(message);
     }
   }
 
-  void _handleMessageTap(BuildContext context, types.Message message) async {
-    if (message is types.FileMessage) {
-      var localPath = message.uri;
 
-      // Open the file using the `open_file` plugin
-      await OpenFile.open(localPath);
+  void _handleMessageTap(
+      chat_core.Message message, {
+        int? index,
+        TapUpDetails? details,
+      }) async {
+    if (message is chat_core.FileMessage) {
+      final localPath = message.source;
+
+      if (localPath.isNotEmpty) {
+        await OpenFile.open(localPath);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File path is missing.')),
+        );
+      }
     }
   }
 
+
+
+
+
+
   void _postBotThinking() {
+    setState(() {
+      _isBotThinking = true;
+    });
+
     final botMessage = chat_core.TextMessage(
       authorId: _bot.id,
-      // Bot as author
       createdAt: DateTime.now().toUtc(),
-      id: randomString(),
-      text: "Thinking...",
-      // Placeholder text
+      id: 'thinking-${DateTime.now().millisecondsSinceEpoch}',
+      text: "🤔 Thinking...",
+      metadata: {
+        'sending': true,
+      },
     );
+
     _addMessage(botMessage);
   }
+
+
+
+
 
   Future<void> _handleSendPressed(String text) async {
     final chatService = ChatService();
@@ -409,8 +468,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         text: llamaResponse,
       );
 
-      _updateLastMessage(llamaResponse); // update UI "thinking" message if you use one
+      _updateLastMessage(
+          llamaResponse); // update UI "thinking" message if you use one
       _addMessage(botMessage);
+      setState(() {
+        _isBotThinking = false;
+      });
+
 
       // Save bot message to Firestore (or your backend)
       await chatService.sendMessage(
@@ -422,13 +486,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-
-
   void _updateLastMessage(String newText) {
     final index = 0; // Last message index (you might want to double-check this)
 
     if (index >= 0 && _messages[index] is chat_core.TextMessage) {
-      final updatedMessage = (_messages[index] as chat_core.TextMessage).copyWith(
+      final updatedMessage =
+          (_messages[index] as chat_core.TextMessage).copyWith(
         text: newText,
         // Optionally update createdAt to now or keep the old one:
         // createdAt: DateTime.now().millisecondsSinceEpoch,
@@ -438,5 +501,4 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       });
     }
   }
-
 }
