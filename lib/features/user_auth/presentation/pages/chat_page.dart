@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
@@ -16,6 +17,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
 import 'package:senseai/features/utils/video_processor.dart';
+
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
+import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../../../utils/audio_processor.dart';
 import '../../data/api_service.dart';
@@ -37,7 +42,19 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
-  final List<types.Message> _messages = [];
+  final List<chat_core.User> users = [
+    chat_core.User(id: 'user1'),
+    chat_core.User(id: 'bot'),
+  ];
+
+  Future<chat_core.User?> resolveUser(chat_core.UserID id) async {
+    if (_user.id == id) return _user;
+    return chat_core.User(id: id); // fallback bot or unknown
+  }
+
+  List<chat_core.Message> _messages = [];
+
+  final _chatController = InMemoryChatController();
 
   final _bot = const types.User(
     id: 'bot-1234', // Unique bot ID
@@ -48,13 +65,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   late VideoProcessor _processor;
   final ChatService _chatService = ChatService();
 
-  late final types.User _user;
+  late final chat_core.User _user;
 
   @override
   void initState() {
     super.initState();
     _processor = VideoProcessor(apiService);
-    _user = types.User(id: FirebaseAuth.instance.currentUser!.uid);
+    _user = chat_core.User(id: FirebaseAuth.instance.currentUser!.uid);
   }
 
   final AudioRecorder audioRecorder = AudioRecorder();
@@ -83,8 +100,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             _videoRecordingButton(),
           ],
         ),
-        body: StreamBuilder<List<types.TextMessage>>(
-          stream: _chatService.getMessages(widget.chatId),
+        body: StreamBuilder<List<chat_core.Message>>(
+          stream: _chatService.getMessages(widget.chatId)
+              as Stream<List<chat_core.Message>>?,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData) {
@@ -96,6 +114,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             }
 
             final firestoreMessages = snapshot.data ?? [];
+
             final mergedMessages = _mergeMessages(firestoreMessages, _messages);
 
             if (!listEquals(_messages, mergedMessages)) {
@@ -105,6 +124,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     ..clear()
                     ..addAll(mergedMessages);
                 });
+
+                _chatController
+                    .setMessages(mergedMessages); // Also set to controller
               });
             }
 
@@ -112,10 +134,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               children: [
                 Expanded(
                   child: Chat(
-                    messages: _messages,
-                    onMessageTap: _handleMessageTap,
-                    onSendPressed: _handleSendPressed,
-                    user: _user,
+                    chatController: _chatController,
+                    currentUserId: _user.id,
+                    resolveUser: resolveUser,
+                    onMessageSend: (text) {
+                      _chatController.insertMessage(
+                        chat_core.TextMessage(
+                          id: randomString(),
+                          authorId: _user.id,
+                          createdAt: DateTime.now().toUtc(),
+                          text: text,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -124,20 +155,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ),
       );
 
-  List<types.Message> _mergeMessages(
-    List<types.Message> firestoreMessages,
-    List<types.Message> localMessages,
+  List<chat_core.Message> _mergeMessages(
+    List<chat_core.Message> firestoreMessages,
+    List<chat_core.Message> localMessages,
   ) {
-    final Map<String, types.Message> merged = {
+    final Map<String, chat_core.Message> merged = {
       for (final msg in firestoreMessages) msg.id: msg,
     };
 
-    for (final localMsg in _messages) {
+    for (final localMsg in localMessages) {
       merged[localMsg.id] = localMsg;
     }
 
     return merged.values.toList()
-      ..sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
+      ..sort((a, b) =>
+          (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
   }
 
   _recordingButton() {
@@ -154,11 +186,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             var transcript = await transcribeAudio(recordingPath!);
             if (transcript.isNotEmpty) {
               _addMessage(
-                types.TextMessage(
-                  author: _user,
+                chat_core.TextMessage(
+                  authorId: _user.id,
                   id: DateTime.now().toIso8601String(),
                   text: transcript,
-                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                  createdAt: DateTime.now().toUtc(),
                 ),
               );
             }
@@ -235,21 +267,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     if (videoPath != null) {
       addMessageFromPath(videoPath);
       await _chatService.sendVideoMessage(videoPath, widget.chatId);
-      final newPath = '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId/${p.basename(videoPath)}';
+      final newPath =
+          '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId/${p.basename(videoPath)}';
       await File(videoPath).copy(newPath); // or move
       try {
-
         // Step 1: Process the video
         final processedData = await _processor.processVideo(videoPath);
 
         // Step 2: If audio exists, get transcript
         if (processedData.transcript.isNotEmpty) {
           _addMessage(
-            types.TextMessage(
-              author: _user,
+            chat_core.TextMessage(
+              authorId: _user.id,
               id: DateTime.now().toIso8601String(),
               text: processedData.transcript,
-              createdAt: DateTime.now().millisecondsSinceEpoch,
+              createdAt: DateTime.now().toUtc(),
             ),
           );
         }
@@ -279,8 +311,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-
-  void _addMessage(types.Message message) {
+  void _addMessage(chat_core.Message message) {
     setState(() {
       _messages.insert(0, message);
     });
@@ -291,20 +322,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   //               showToast(message: "Successfully signed out");
 
   void addMessageFromPath(String filePath) {
-    // Check if the video path is not empty (or any other condition you want)
     if (filePath.isNotEmpty) {
-      final message = types.FileMessage(
-        author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
+      final message = chat_core.FileMessage(
+        authorId: _user.id,
+        // chat_core uses authorId (String)
+        createdAt: DateTime.now().toUtc(),
+        // createdAt is DateTime
         id: randomString(),
         name: 'Video Recorded',
         size: 0,
-        // You can set size if needed
-        uri: filePath, // Use the video path directly
+        // update if you know file size
+        source: filePath, // or FileType.audio for audio files
       );
 
-      _addMessage(
-          message); // Assuming _addMessage adds the message to your chat system
+      _addMessage(message);
     }
   }
 
@@ -318,10 +349,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _postBotThinking() {
-    final botMessage = types.TextMessage(
-      author: _bot,
+    final botMessage = chat_core.TextMessage(
+      authorId: _bot.id,
       // Bot as author
-      createdAt: DateTime.now().millisecondsSinceEpoch,
+      createdAt: DateTime.now().toUtc(),
       id: randomString(),
       text: "Thinking...",
       // Placeholder text
@@ -329,78 +360,83 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     _addMessage(botMessage);
   }
 
-  void _handleSendPressed(types.PartialText message) async {
-    final textMessage = types.TextMessage(
-      author: _user,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
+  Future<void> _handleSendPressed(String text) async {
+    final chatService = ChatService();
+
+    // Create a new text message
+    final textMessage = chat_core.TextMessage(
+      authorId: _user.id,
+      createdAt: DateTime.now().toUtc(),
       id: randomString(),
-      text: message.text,
+      text: text,
     );
 
+    // Add the message locally immediately
     _addMessage(textMessage);
 
-    final chatService = ChatService();
+    // Reference to the chat document in Firestore
     final chatRef = FirebaseFirestore.instance
         .collection('users')
         .doc(FirebaseAuth.instance.currentUser!.uid)
         .collection('chats')
         .doc(widget.chatId);
 
-    // 👇 Ensure chat session exists
+    // Ensure the chat session exists
     final chatDoc = await chatRef.get();
     if (!chatDoc.exists) {
       await chatService.createChatSession(widget.chatId);
     }
 
-    // ✅ Save message
+    // Save user message to Firestore (or your backend)
     await chatService.sendMessage(
       chatId: widget.chatId,
       message: textMessage,
     );
 
+    // Show bot thinking/loading state if needed
     _postBotThinking();
 
-    apiService
-        .sendMultipartRequest(text: message.text)
-        .then((responseBody) async {
-      try {
-        final decoded = jsonDecode(responseBody);
-        final llamaResponse =
-            decoded['llamaResponse'] ?? 'No response received';
+    // Send the text to your API, process bot response
+    try {
+      final responseBody = await apiService.sendMultipartRequest(text: text);
+      final decoded = jsonDecode(responseBody);
+      final llamaResponse = decoded['llamaResponse'] ?? 'No response received';
 
-        final botMessage = types.TextMessage(
-          author: _bot,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          id: randomString(),
-          text: llamaResponse,
-        );
+      final botMessage = chat_core.TextMessage(
+        authorId: _bot.id,
+        createdAt: DateTime.now().toUtc(),
+        id: randomString(),
+        text: llamaResponse,
+      );
 
-        _updateLastMessage(llamaResponse);
-        _addMessage(botMessage);
+      _updateLastMessage(llamaResponse); // update UI "thinking" message if you use one
+      _addMessage(botMessage);
 
-        // ✅ Save bot response
-        await chatService.sendMessage(
-          chatId: widget.chatId,
-          message: botMessage,
-        );
-      } catch (e) {
-        _updateLastMessage("Error: Failed to parse response");
-      }
-    }).catchError((error) {
+      // Save bot message to Firestore (or your backend)
+      await chatService.sendMessage(
+        chatId: widget.chatId,
+        message: botMessage,
+      );
+    } catch (error) {
       _updateLastMessage("Error: Failed to get response: $error");
-    });
+    }
   }
 
-  void _updateLastMessage(String newText) {
-    final index = 0; // Get last message index
 
-    if (index >= 0 && _messages[index] is types.TextMessage) {
-      final updatedMessage = (_messages[index] as types.TextMessage).copyWith(
-        text: newText, // Update with actual response
+
+  void _updateLastMessage(String newText) {
+    final index = 0; // Last message index (you might want to double-check this)
+
+    if (index >= 0 && _messages[index] is chat_core.TextMessage) {
+      final updatedMessage = (_messages[index] as chat_core.TextMessage).copyWith(
+        text: newText,
+        // Optionally update createdAt to now or keep the old one:
+        // createdAt: DateTime.now().millisecondsSinceEpoch,
       );
       setState(() {
         _messages[index] = updatedMessage;
       });
     }
   }
+
 }

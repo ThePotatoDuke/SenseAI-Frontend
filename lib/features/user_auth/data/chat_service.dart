@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 
 import '../presentation/pages/chat_page.dart';
 
@@ -29,7 +30,7 @@ class ChatService {
   /// Save a message under a specific session
   Future<void> sendMessage({
     required String chatId,
-    required types.TextMessage message,
+    required chat_core.TextMessage message,  // now core model only
   }) async {
     final uid = _auth.currentUser!.uid;
     final messageRef = _firestore
@@ -38,16 +39,15 @@ class ChatService {
         .collection('chats')
         .doc(chatId)
         .collection('messages')
-        .doc(message.id); // You control this ID using `randomString()`
+        .doc(message.id);
 
     await messageRef.set({
-      'sender': message.author.id,
+      'sender': message.authorId,
       'type': 'text',
       'content': message.text,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // Update chat preview
     await _firestore
         .collection('users')
         .doc(uid)
@@ -55,11 +55,14 @@ class ChatService {
         .doc(chatId)
         .update({
       'lastMessage': message.text,
+      'lastUpdated': FieldValue.serverTimestamp(),
     });
   }
 
+
+
   /// Load past messages for a chat session
-  Stream<List<types.TextMessage>> getMessages(String chatId) {
+  Stream<List<chat_core.Message>> getMessages(String chatId) {
     final uid = _auth.currentUser!.uid;
 
     return _firestore
@@ -72,12 +75,11 @@ class ChatService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return types.TextMessage(
-          author: types.User(id: doc['sender']),
-          createdAt:
-          (doc['timestamp'] as Timestamp?)?.millisecondsSinceEpoch,
+        return chat_core.TextMessage(
+          authorId: doc['sender'] as String,
+          createdAt: (doc['timestamp'] as Timestamp?)?.toDate(),
           id: doc.id,
-          text: doc['content'],
+          text: doc['content'] as String,
         );
       }).toList();
     });
