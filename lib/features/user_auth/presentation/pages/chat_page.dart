@@ -4,10 +4,12 @@ import 'dart:math';
 
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
+
+
+
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
@@ -16,10 +18,14 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
 import 'package:senseai/features/utils/video_processor.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
+import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../../../utils/audio_processor.dart';
 import '../../data/api_service.dart';
 import '../../data/chat_service.dart';
+
 
 String randomString() {
   final random = Random.secure();
@@ -30,7 +36,7 @@ String randomString() {
 class ChatPage extends StatefulWidget {
   final String chatId;
 
-  const ChatPage({Key? key, required this.chatId}) : super(key: key);
+  ChatPage({Key? key, required this.chatId}) : super(key: key);
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -38,7 +44,7 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final List<types.Message> _messages = [];
-
+  final _chatController = chat_core.InMemoryChatController();
   final _bot = const types.User(
     id: 'bot-1234', // Unique bot ID
     firstName: 'SenseAI Bot', // Bot name
@@ -50,11 +56,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   late final types.User _user;
 
+  final List<chat_core.User> users = [
+    chat_core.User(id: 'user1'),
+    chat_core.User(id: 'bot'),
+  ];
   @override
   void initState() {
     super.initState();
-    _processor = VideoProcessor(apiService);
-    _user = types.User(id: FirebaseAuth.instance.currentUser!.uid);
+    _user = types.User(id: 'user1');
+    _initializeUser();
+
   }
 
   final AudioRecorder audioRecorder = AudioRecorder();
@@ -72,10 +83,53 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     controller?.dispose();
     super.dispose();
   }
+  // 3. Resolve user function (fetch from Firestore)
+  Future<chat_core.User?> resolveUser(chat_core.UserID id) async {
+    try {
+      return users.firstWhere((user) => user.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+
+  Future<void> _initializeUser() async {
+    final firebaseUser = fb_auth.FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null) {
+      _user = types.User(
+        id: firebaseUser.uid,
+      );
+    } else {
+      _user = types.User(id: 'fallback-user');
+    }
+  }
+
+
+  List<chat_core.Message> convertTypesToCore(List<types.Message> messages) {
+    return messages.map((msg) {
+      if (msg is types.TextMessage) {
+        return chat_core.TextMessage(
+          id: msg.id,
+          authorId: msg.author.id,
+          createdAt: msg.createdAt != null ? DateTime.fromMillisecondsSinceEpoch(msg.createdAt!) : null,
+          text: msg.text,
+        );
+
+      }
+      // Add conversions for other message types (FileMessage, ImageMessage, etc.)
+      // For now, fallback:
+      return chat_core.TextMessage(
+        id: msg.id,
+        authorId: msg.author.id,
+        createdAt: msg.createdAt != null ? DateTime.fromMillisecondsSinceEpoch(msg.createdAt!) : null,
+        text: "[Unsupported message type]",
+      );
+    }).toList();
+  }
 
   @override
-  @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) =>
+      Scaffold(
         appBar: AppBar(
           title: const Text("Chat"),
           actions: [
@@ -83,7 +137,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             _videoRecordingButton(),
           ],
         ),
-        body: StreamBuilder<List<types.TextMessage>>(
+        body: StreamBuilder<List<types.Message>>(
           stream: _chatService.getMessages(widget.chatId),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting &&
@@ -98,47 +152,61 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             final firestoreMessages = snapshot.data ?? [];
             final mergedMessages = _mergeMessages(firestoreMessages, _messages);
 
+// Only update if there's a change
             if (!listEquals(_messages, mergedMessages)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 setState(() {
                   _messages
                     ..clear()
                     ..addAll(mergedMessages);
+
+                  _chatController.setMessages(convertTypesToCore(_messages)); // Update the chat controller with new messages
                 });
               });
             }
 
+
+
             return Column(
-              children: [
-                Expanded(
-                  child: Chat(
-                    messages: _messages,
-                    onMessageTap: _handleMessageTap,
-                    onSendPressed: _handleSendPressed,
-                    user: _user,
-                  ),
-                ),
-              ],
+                children: [
+            Expanded(
+            child: Chat(
+            chatController: _chatController,
+                currentUserId: 'user1',
+                onMessageSend: (text) {
+                  _chatController.insertMessage(
+                    chat_core.TextMessage(
+                      // Better to use UUID or similar for the ID - IDs must be unique.
+                      id: '${Random().nextInt(1000) + 1}',
+                      authorId: 'user1',
+                      createdAt: DateTime.now().toUtc(),
+                      text: text,
+                    ),
+                  );
+                }, resolveUser: resolveUser,
+            ),)]
+            ,
             );
           },
         ),
       );
 
   List<types.Message> _mergeMessages(
-    List<types.Message> firestoreMessages,
-    List<types.Message> localMessages,
-  ) {
+      List<types.Message> firestoreMessages,
+      List<types.Message> localMessages,
+      ) {
     final Map<String, types.Message> merged = {
       for (final msg in firestoreMessages) msg.id: msg,
     };
 
-    for (final localMsg in _messages) {
+    for (final localMsg in localMessages) {
       merged[localMsg.id] = localMsg;
     }
 
     return merged.values.toList()
       ..sort((a, b) => (b.createdAt ?? 0).compareTo(a.createdAt ?? 0));
   }
+
 
   _recordingButton() {
     return IconButton(
@@ -158,14 +226,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   author: _user,
                   id: DateTime.now().toIso8601String(),
                   text: transcript,
-                  createdAt: DateTime.now().millisecondsSinceEpoch,
+                  createdAt: DateTime
+                      .now()
+                      .millisecondsSinceEpoch,
                 ),
               );
             }
             _postBotThinking();
             apiService
                 .sendMultipartRequest(
-                    text: transcript, audioPath: recordingPath)
+                text: transcript, audioPath: recordingPath)
                 .then((responseBody) {
               try {
                 final decoded = jsonDecode(responseBody);
@@ -182,12 +252,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         } else {
           if (await audioRecorder.hasPermission()) {
             final Directory appDocumentsDir =
-                await getApplicationDocumentsDirectory();
+            await getApplicationDocumentsDirectory();
             final String audioDirectory =
                 '${appDocumentsDir.path}/Audio/SenseAI/';
             await Directory(audioDirectory).create(recursive: true);
             final String filePath = p.join(audioDirectory,
-                'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
+                'audio_${DateTime
+                    .now()
+                    .millisecondsSinceEpoch}.wav');
             await audioRecorder.start(const RecordConfig(), path: filePath);
             setState(() {
               isRecordingAudio = true;
@@ -235,10 +307,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     if (videoPath != null) {
       addMessageFromPath(videoPath);
       await _chatService.sendVideoMessage(videoPath, widget.chatId);
-      final newPath = '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId/${p.basename(videoPath)}';
+      final newPath = '${(await getApplicationDocumentsDirectory())
+          .path}/$widget.chatId/${p.basename(videoPath)}';
       await File(videoPath).copy(newPath); // or move
       try {
-
         // Step 1: Process the video
         final processedData = await _processor.processVideo(videoPath);
 
@@ -249,7 +321,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               author: _user,
               id: DateTime.now().toIso8601String(),
               text: processedData.transcript,
-              createdAt: DateTime.now().millisecondsSinceEpoch,
+              createdAt: DateTime
+                  .now()
+                  .millisecondsSinceEpoch,
             ),
           );
         }
@@ -258,9 +332,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         // Step 3: Send processed data to server
         apiService
             .sendMultipartRequest(
-                text: processedData.transcript,
-                audioPath: processedData.audioPath,
-                imageFiles: processedData.resizedFrames)
+            text: processedData.transcript,
+            audioPath: processedData.audioPath,
+            imageFiles: processedData.resizedFrames)
             .then((responseBody) {
           try {
             final decoded = jsonDecode(responseBody);
@@ -295,7 +369,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     if (filePath.isNotEmpty) {
       final message = types.FileMessage(
         author: _user,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
+        createdAt: DateTime
+            .now()
+            .millisecondsSinceEpoch,
         id: randomString(),
         name: 'Video Recorded',
         size: 0,
@@ -321,7 +397,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final botMessage = types.TextMessage(
       author: _bot,
       // Bot as author
-      createdAt: DateTime.now().millisecondsSinceEpoch,
+      createdAt: DateTime
+          .now()
+          .millisecondsSinceEpoch,
       id: randomString(),
       text: "Thinking...",
       // Placeholder text
@@ -332,7 +410,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void _handleSendPressed(types.PartialText message) async {
     final textMessage = types.TextMessage(
       author: _user,
-      createdAt: DateTime.now().millisecondsSinceEpoch,
+      createdAt: DateTime
+          .now()
+          .millisecondsSinceEpoch,
       id: randomString(),
       text: message.text,
     );
@@ -342,7 +422,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final chatService = ChatService();
     final chatRef = FirebaseFirestore.instance
         .collection('users')
-        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .doc(fb_auth.FirebaseAuth.instance.currentUser!.uid)
         .collection('chats')
         .doc(widget.chatId);
 
@@ -370,7 +450,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
         final botMessage = types.TextMessage(
           author: _bot,
-          createdAt: DateTime.now().millisecondsSinceEpoch,
+          createdAt: DateTime
+              .now()
+              .millisecondsSinceEpoch,
           id: randomString(),
           text: llamaResponse,
         );
@@ -404,3 +486,49 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 }
+
+class SimpleFileMessageWidget extends StatelessWidget {
+  final types.FileMessage message;
+
+  const SimpleFileMessageWidget(this.message, {Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.insert_drive_file, size: 32),
+          SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              message.name ?? 'File',
+              style: TextStyle(fontSize: 16),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget customMessageBuilder(types.CustomMessage customMessage, {
+  required int messageWidth,
+}) {
+  final message = customMessage as types.Message;
+  if (message is types.FileMessage) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      color: Colors.blue,
+      child: Text('Video or file here!'),
+    );
+  }
+  return SizedBox.shrink();
+}
+

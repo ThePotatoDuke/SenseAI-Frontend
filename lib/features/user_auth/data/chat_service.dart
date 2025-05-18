@@ -59,7 +59,7 @@ class ChatService {
   }
 
   /// Load past messages for a chat session
-  Stream<List<types.TextMessage>> getMessages(String chatId) {
+  Stream<List<types.Message>> getMessages(String chatId) {
     final uid = _auth.currentUser!.uid;
 
     return _firestore
@@ -74,14 +74,14 @@ class ChatService {
       return snapshot.docs.map((doc) {
         return types.TextMessage(
           author: types.User(id: doc['sender']),
-          createdAt:
-          (doc['timestamp'] as Timestamp?)?.millisecondsSinceEpoch,
+          createdAt: (doc['timestamp'] as Timestamp?)?.millisecondsSinceEpoch,
           id: doc.id,
           text: doc['content'],
         );
       }).toList();
     });
   }
+
 
   Future<void> sendVideoMessage(String videoPath, String chatId) async {
     final uid = _auth.currentUser!.uid;
