@@ -194,7 +194,28 @@ class _HomePageState extends State<HomePage> {
                       sideTitles: SideTitles(showTitles: false),
                     ),
                     leftTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: true),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1, // <= ensure every value gets evaluated
+                        reservedSize: 40,
+                        getTitlesWidget: (value, meta) {
+                          final yValues = spots.map((s) => s.y.round()).toSet();
+
+                          const tolerance = 0.01;
+                          final isSpotValue = yValues.any((y) => (y - value).abs() < tolerance);
+
+                          if (!isSpotValue) return const SizedBox.shrink();
+
+                          return Text(
+                            value.toStringAsFixed(0),
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyMedium?.color,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          );
+                        },
+                      ),
                     ),
                     rightTitles: AxisTitles(
                       sideTitles: SideTitles(showTitles: false),
@@ -243,53 +264,7 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 24),
-                Container(
-                  decoration: BoxDecoration(
-
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.purple.shade700,
-                            Colors.purpleAccent.shade100,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatPage(chatId: randomString()),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.chat, color: Colors.white),
-
-                        label: const Text('Go to Chat'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent, // Make button background transparent
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          foregroundColor: Colors.white, // White text & icon on purple gradient
-                          textStyle: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ),
-                  )
-
-                ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
                 buildSectionTitle('Stress Chart'),
                 buildLineChartCard(
                   title: 'Stress',

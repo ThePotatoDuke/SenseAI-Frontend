@@ -186,7 +186,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               isRecordingAudio = false;
               recordingPath = filePath;
             });
-            addMessageFromPath(recordingPath!);
             await _chatService.sendFileMessageLocalOnly(
               filePath: filePath,
               chatId: widget.chatId,
@@ -279,17 +278,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       fileType: 'video',
     );
     if (videoPath != null) {
-      // Step 1: Add video message locally
-      final videoMessage = chat_core.FileMessage(
-        authorId: _user.id,
-        id: DateTime.now().toIso8601String(),
-        createdAt: DateTime.now().toUtc(),
-        name: p.basename(videoPath),
-        size: await File(videoPath).length(),
-        source: videoPath,
-        mimeType: 'video/mp4', // or get actual mime type if needed
-      );
-      _addMessage(videoMessage);
 
       final newDirPath =
           '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId';
