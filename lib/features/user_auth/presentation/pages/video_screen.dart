@@ -1,3 +1,4 @@
+import 'dart:async'; // for Timer
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,9 @@ class _VideoScreenState extends State<VideoScreen> {
   late CameraController controller;
   late String videoPath;
   late bool isRecording;
+  Timer? _recordingTimer;  // For auto-stop timer
+  Timer? _countdownTimer;  // For UI countdown
+  int _secondsRemaining = 9;  // Countdown start from 9
 
   @override
   void initState() {
@@ -40,57 +44,79 @@ class _VideoScreenState extends State<VideoScreen> {
     final String videoDirectory = '${appDirectory.path}/Movies/SenseAI/';
     await Directory(videoDirectory).create(recursive: true);
     videoPath =
-        '$videoDirectory/video_${DateTime.now().millisecondsSinceEpoch}.mp4';
+    '$videoDirectory/video_${DateTime.now().millisecondsSinceEpoch}.mp4';
 
-    // Start recording
     await controller.startVideoRecording();
     setState(() {
       isRecording = true;
+      _secondsRemaining = 9; // Reset countdown
+    });
+
+    // Auto stop recording after 9 seconds
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer(Duration(seconds: 9), () {
+      if (isRecording) {
+        stopRecording();
+      }
+    });
+
+    // Start countdown timer for UI update every second
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (_secondsRemaining == 0) {
+        timer.cancel();
+      } else {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
     });
   }
 
-  // Stop recording and pop the screen, returning the video path
+  // Stop recording
   void stopRecording() async {
     if (!isRecording) return;
+
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
 
     await controller.stopVideoRecording().then((file) {
       setState(() {
         isRecording = false;
       });
 
-      // Handle the recorded video (for example, return the path)
       videoPath = file.path;
       print("Video saved to $videoPath");
 
-      // Pop the screen and return the video path to the previous screen
       Navigator.pop(context, videoPath);
     });
   }
 
   @override
   void dispose() {
-    super.dispose();
+    _recordingTimer?.cancel();
+    _countdownTimer?.cancel();
     controller.dispose();
+    super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Camera preview at the top
         Expanded(
           child: Stack(
             children: [
-              // Constrained Camera Preview with the same size as the screen
-              SizedBox.expand(
-                child: CameraPreview(controller),
-              ),
+              SizedBox.expand(child: CameraPreview(controller)),
               if (isRecording)
                 Align(
-                  alignment: Alignment.bottomCenter, // Align at the bottom
+                  alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(
-                        bottom: 80), // Adjust to fine-tune
+                    padding: const EdgeInsets.only(bottom: 80),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -104,9 +130,9 @@ class _VideoScreenState extends State<VideoScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          "Recording...",
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        Text(
+                          "Recording... ($_secondsRemaining s)",
+                          style: const TextStyle(color: Colors.white, fontSize: 16),
                         ),
                       ],
                     ),
@@ -115,9 +141,7 @@ class _VideoScreenState extends State<VideoScreen> {
             ],
           ),
         ),
-
         const SizedBox(height: 10),
-
         GestureDetector(
           onTap: isRecording ? stopRecording : startRecording,
           child: Container(

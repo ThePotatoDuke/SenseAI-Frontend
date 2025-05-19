@@ -1,6 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 
-List<FlSpot> stressSpots = [];
-List<FlSpot> heartRateSpots = [];
+List<FlSpot> recentStressSpots = [];
+List<FlSpot> recentHeartRateSpots = [];
 
 

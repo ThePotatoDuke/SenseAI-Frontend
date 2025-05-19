@@ -26,26 +26,28 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              "SenseAI",
-              style: TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-              ),
+            Image.asset(
+              'assets/senseai_logo.jpg', // make sure this path is correct and asset added in pubspec.yaml
+              width: 150,          // adjust size as you want
+              height: 150,
+              fit: BoxFit.contain,
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 24),
+
             CircularProgressIndicator(),
           ],
         ),
       ),
     );
   }
+
   void _checkAuthentication() async {
     await Future.delayed(Duration(seconds: 2));
 

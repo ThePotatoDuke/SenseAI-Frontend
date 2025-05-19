@@ -25,6 +25,7 @@ import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../../../utils/audio_processor.dart';
+import '../../../utils/globals.dart';
 import '../../data/api_service.dart';
 import '../../data/chat_service.dart';
 
@@ -36,7 +37,6 @@ String randomString() {
 
 class ChatPage extends StatefulWidget {
   final String chatId;
-
   const ChatPage({Key? key, required this.chatId}) : super(key: key);
 
   @override
@@ -44,6 +44,8 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
+  bool showRecentBubble = false;
+
   final List<chat_core.User> users = [
     chat_core.User(id: 'user1'),
     chat_core.User(id: 'bot'),
@@ -92,20 +94,65 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     controller?.dispose();
     super.dispose();
   }
+  Widget _buildRecentHeartRateBubble() {
+    // Get the most recent stress spot (last item)
+    final recentStress = recentStressSpots.isNotEmpty ? recentStressSpots.last : null;
+    // Get the most recent heart rate spot (last item)
+    final recentHR = recentHeartRateSpots.isNotEmpty ? recentHeartRateSpots.last : null;
+
+    // Format helper for showing '-' if null or zero
+    String formatValue(double? val) {
+      if (val == null || val == 0) return '-';
+      return val.toInt().toString();
+    }
+
+    return Material(
+      elevation: 6,
+      borderRadius: BorderRadius.circular(12),
+      color: Colors.white,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        constraints: BoxConstraints(maxWidth: 250),
+        child: Text(
+          'Stress: ${formatValue(recentStress?.y)}, HR: ${formatValue(recentHR?.y)}',
+          style: TextStyle(fontSize: 14, color: Colors.black87),
+        ),
+      ),
+    );
+  }
+
+
 
   @override
-  @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text("Chat"),
-          actions: [
-            _recordingButton(),
-            _videoRecordingButton(),
-          ],
+
+
+    appBar: AppBar(
+      title: const Text("Chat"),
+      actions: [
+        _recordingButton(),
+        _videoRecordingButton(),
+        IconButton(
+          icon: Icon(
+            (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty) ? Icons.favorite : Icons.favorite_border,
+            color: (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty) ? Colors.red : Colors.black87,
+          ),
+          onPressed: () {
+            setState(() {
+              showRecentBubble = !showRecentBubble;
+            });
+          },
+          tooltip: 'Show recent heart rate',
         ),
-        body: StreamBuilder<List<chat_core.Message>>(
+      ],
+    ),
+
+
+    body: Stack(
+      children: [
+        StreamBuilder<List<chat_core.Message>>(
           stream: _chatService.getMessages(widget.chatId)
-              as Stream<List<chat_core.Message>>?,
+          as Stream<List<chat_core.Message>>?,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData) {
@@ -128,8 +175,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     ..addAll(mergedMessages);
                 });
 
-                _chatController
-                    .setMessages(mergedMessages); // Also set to controller
+                _chatController.setMessages(mergedMessages); // Also set to controller
               });
             }
 
@@ -141,7 +187,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                     currentUserId: _user.id,
                     resolveUser: resolveUser,
                     onMessageSend: _isBotThinking ? null : _handleSendPressed,
-
                     builders: Builders(
                       fileMessageBuilder: (context, message, index) =>
                           FlyerChatFileMessage(message: message, index: index),
@@ -153,13 +198,40 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ),
                     ),
                     onMessageTap: _handleMessageTap,
-                  )
+                  ),
                 ),
               ],
             );
           },
         ),
-      );
+
+        // The recent heart rate bubble, only visible if showRecentBubble == true
+        if (showRecentBubble) ...[
+          // Full screen transparent tap catcher to close the bubble
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  showRecentBubble = false;
+                });
+              },
+              child: Container(
+                color: Colors.transparent, // invisible layer catches taps
+              ),
+            ),
+          ),
+
+          // Your bubble, on top
+          Positioned(
+            top: 0,
+            right: 16,
+            child: _buildRecentHeartRateBubble(),
+          ),
+        ],
+      ],
+    ),
+
+  );
 
   List<chat_core.Message> _mergeMessages(
     List<chat_core.Message> firestoreMessages,
@@ -201,23 +273,34 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   createdAt: DateTime.now().toUtc(),
                 ),
               );
+              _postBotThinking();
+
+              apiService
+                  .sendMultipartRequest(
+                      text: transcript, audioPath: recordingPath)
+                  .then((responseBody) {
+                try {
+                  final decoded = jsonDecode(responseBody);
+                  final llamaResponse =
+                      decoded['llamaResponse'] ?? 'No response received';
+                  _updateLastMessage(llamaResponse);
+                } catch (e) {
+                  _updateLastMessage("Error: Failed to parse response");
+                }
+              }).catchError((error) {
+                _updateLastMessage("Error: Failed to get response: $error");
+              });
+            } else {
+
+              _addMessage(
+                chat_core.TextMessage(
+                  authorId: _user.id,
+                  id: DateTime.now().toIso8601String(),
+                  text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
+                  createdAt: DateTime.now().toUtc(),
+                ),
+              );
             }
-            _postBotThinking();
-            apiService
-                .sendMultipartRequest(
-                    text: transcript, audioPath: recordingPath)
-                .then((responseBody) {
-              try {
-                final decoded = jsonDecode(responseBody);
-                final llamaResponse =
-                    decoded['llamaResponse'] ?? 'No response received';
-                _updateLastMessage(llamaResponse);
-              } catch (e) {
-                _updateLastMessage("Error: Failed to parse response");
-              }
-            }).catchError((error) {
-              _updateLastMessage("Error: Failed to get response: $error");
-            });
           }
         } else {
           if (await audioRecorder.hasPermission()) {
@@ -278,7 +361,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       fileType: 'video',
     );
     if (videoPath != null) {
-
       final newDirPath =
           '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId';
 
@@ -307,24 +389,31 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               createdAt: DateTime.now().toUtc(),
             ),
           );
+          _postBotThinking();
+
+          // Step 5: Send processed data to server (API call)
+          final responseBody = await apiService.sendMultipartRequest(
+            text: processedData.transcript,
+            audioPath: processedData.audioPath,
+            imageFiles: processedData.resizedFrames,
+          );
+
+          final decoded = jsonDecode(responseBody);
+          final llamaResponse =
+              decoded['llamaResponse'] ?? 'No response received';
+          _updateLastMessage(llamaResponse);
+        }else{
+          _addMessage(
+            chat_core.TextMessage(
+              authorId: _user.id,
+              id: DateTime.now().toIso8601String(),
+              text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
+              createdAt: DateTime.now().toUtc(),
+            ),
+          );
         }
 
-        _postBotThinking();
 
-        // Step 5: Send processed data to server (API call)
-        final responseBody = await apiService.sendMultipartRequest(
-          text: processedData.transcript,
-          audioPath: processedData.audioPath,
-          imageFiles: processedData.resizedFrames,
-        );
-
-        final decoded = jsonDecode(responseBody);
-        final llamaResponse =
-            decoded['llamaResponse'] ?? 'No response received';
-        _updateLastMessage(llamaResponse);
-
-        // Here you could send video message to backend if needed
-        // await _chatService.sendVideoMessage(newPath, widget.chatId);
       } catch (e) {
         print("Error handling video processing or sending: $e");
       }
@@ -337,11 +426,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     });
     _chatController.insertMessage(message);
   }
-
-  // FirebaseAuth.instance.signOut();
-  //               Navigator.push(context, MaterialPageRoute(builder: (_) => LoginPage()));
-  //               showToast(message: "Successfully signed out");
-
   void addMessageFromPath(String filePath) async {
     if (filePath.isNotEmpty) {
       final file = File(filePath);
@@ -361,12 +445,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-
   void _handleMessageTap(
-      chat_core.Message message, {
-        int? index,
-        TapUpDetails? details,
-      }) async {
+    chat_core.Message message, {
+    int? index,
+    TapUpDetails? details,
+  }) async {
     if (message is chat_core.FileMessage) {
       final localPath = message.source;
 
@@ -379,11 +462,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       }
     }
   }
-
-
-
-
-
 
   void _postBotThinking() {
     setState(() {
@@ -402,10 +480,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
     _addMessage(botMessage);
   }
-
-
-
-
 
   Future<void> _handleSendPressed(String text) async {
     final chatService = ChatService();
@@ -462,7 +536,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       setState(() {
         _isBotThinking = false;
       });
-
 
       // Save bot message to Firestore (or your backend)
       await chatService.sendMessage(

@@ -33,23 +33,24 @@ class ApiService {
     String? audioPath,
     List<File>? imageFiles,
   }) async {
-    final uri =
-        Uri.parse("https://5f6b-176-41-194-195.ngrok-free.app/analyze/full");
+    final uri = Uri.parse("https://5f6b-176-41-194-195.ngrok-free.app/analyze/full");
     var request = http.MultipartRequest('POST', uri);
 
+    // Use global recentStressSpots and recentHeartRateSpots directly
+    if (recentStressSpots.isNotEmpty) {
+      final latestStress = recentStressSpots.last.y.toInt();
+      request.fields['stress'] = latestStress.toString();
+    }
 
-    final stressLevels = stressSpots.map((spot) => spot.y.toInt()).toList();
-    final stressJson = jsonEncode(stressLevels);
-    request.fields['stress_array'] = stressJson;
+    if (recentHeartRateSpots.isNotEmpty) {
+      final latestHeartRate = recentHeartRateSpots.last.y.toInt();
+      request.fields['heart_rate'] = latestHeartRate.toString();
+    }
 
-    final heartRateLevels = heartRateSpots.map((spot) => spot.y.toInt()).toList();
-    final heartRateJson = jsonEncode(heartRateLevels);
-    request.fields['hr_array'] = heartRateJson;
-
-    // 1. Add the text field (transcript)
+    // Add text field
     request.fields['text'] = text;
 
-    // 2. Add the audio file if it exists
+    // Add audio file if exists
     if (audioPath != null && audioPath.isNotEmpty) {
       final audioFile = File(audioPath);
       if (await audioFile.exists()) {
@@ -59,7 +60,7 @@ class ApiService {
       }
     }
 
-    // 3. Add all resized frame images if any
+    // Add images if any
     if (imageFiles != null && imageFiles.isNotEmpty) {
       for (final imageFile in imageFiles) {
         if (await imageFile.exists()) {
@@ -73,24 +74,21 @@ class ApiService {
       }
     }
 
-    // 4. Headers
-    request.headers.addAll({
-      'Accept': 'application/json',
-    });
+    // Headers
+    request.headers.addAll({'Accept': 'application/json'});
 
-    // 5. Send the request
     try {
       final response = await http.Response.fromStream(await request.send());
-
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
-
-      return response.body; // Return the raw response body regardless of status
+      return response.body;
     } catch (e) {
       throw Exception('Request failed: $e');
     }
-
   }
+
+
+
 
   Future<String> sendImages(List<File> images) async {
     final url =

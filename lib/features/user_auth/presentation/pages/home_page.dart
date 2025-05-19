@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 
 
+import '../../../utils/globals.dart';
 import 'chat_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -58,60 +59,135 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> fetchStressData() async {
-    if (await Permission.manageExternalStorage.isGranted) {
-      final path = '/storage/emulated/0/Download/Gadgetbridge.db';
-      final file = File(path);
-      if (!await file.exists()) throw Exception('Database not found at $path');
+    final path = '/storage/emulated/0/Download/Gadgetbridge.db';
+    final file = File(path);
+    if (!await file.exists()) throw Exception('Database not found at $path');
 
-      final db = await openDatabase(path);
-      final result = await db.rawQuery('''
-        SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, stress 
-        FROM HUAMI_STRESS_SAMPLE 
-        ORDER BY timestamp ASC 
-        LIMIT 8;
-      ''');
-      await db.close();
+    final nowMillis = DateTime.now().millisecondsSinceEpoch;
+    final tenMinutesAgoMillis = nowMillis - (10 * 60 * 1000);
 
-      stressSpots.clear();
-      for (var i = 0; i < result.length; i++) {
-        final data = result[i];
-        final stressLevel = data['stress'] ?? data['STRESS'];
-        if (stressLevel != null) {
-          stressSpots.add(FlSpot(i.toDouble(), (stressLevel as int).toDouble()));
+    final db = await openDatabase(path);
+    final result = await db.rawQuery('''
+    SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, stress 
+    FROM HUAMI_STRESS_SAMPLE 
+    ORDER BY timestamp ASC
+    LIMIT 8;
+  ''');
+    print('Query result: $result');
+    await db.close();
+
+    stressSpots.clear();
+
+    for (var i = 0; i < result.length; i++) {
+      final stressRaw = result[i]['stress'] ?? result[i]['STRESS'];
+      if (stressRaw != null) {
+        final int? stress = stressRaw is int
+            ? stressRaw
+            : int.tryParse(stressRaw.toString());
+        if (stress != null) {
+          stressSpots.add(FlSpot(i.toDouble(), stress.toDouble()));
         }
       }
-
-      setState(() {});
-    } else {
-      await Permission.manageExternalStorage.request();
     }
+
+    if (result.isNotEmpty) {
+      final row = result[result.length - 1];
+      final recentTimestampRaw = row['timestamp'] ?? row['TIMESTAMP'];
+      final int? recentTimestamp = recentTimestampRaw is int
+          ? recentTimestampRaw
+          : int.tryParse(recentTimestampRaw.toString());
+
+      if (recentTimestamp != null && recentTimestamp > tenMinutesAgoMillis) {
+        recentStressSpots.clear();
+
+        for (var data in result) {
+          final tsRaw = data['timestamp'] ?? data['TIMESTAMP'];
+
+          final int? ts = tsRaw is int ? tsRaw : int.tryParse(tsRaw.toString());
+
+          if (ts != null && ts > tenMinutesAgoMillis) {
+            final stressRaw = data['stress'] ?? data['STRESS'];
+            final int? stress = stressRaw is int
+                ? stressRaw
+                : int.tryParse(stressRaw.toString());
+
+            if (stress != null) {
+              final xValue = (ts - tenMinutesAgoMillis) / 1000;
+              recentStressSpots.add(FlSpot(xValue, stress.toDouble()));
+            }
+          }
+        }
+      }
+    }
+
+    setState(() {});
   }
+
+
 
   Future<void> fetchHeartRateData() async {
     final path = '/storage/emulated/0/Download/Gadgetbridge.db';
     final file = File(path);
     if (!await file.exists()) throw Exception('Database not found at $path');
 
+    final nowMillis = DateTime.now().millisecondsSinceEpoch;
+    final tenMinutesAgoMillis = nowMillis - (10 * 60 * 1000);
+
     final db = await openDatabase(path);
     final result = await db.rawQuery('''
-      SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, heart_rate 
-      FROM MI_BAND_ACTIVITY_SAMPLE 
-      WHERE heart_rate <> 255 AND heart_rate <> 0 
-      ORDER BY timestamp ASC 
-      LIMIT 8;
-    ''');
+    SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, heart_rate 
+    FROM MI_BAND_ACTIVITY_SAMPLE 
+    WHERE heart_rate <> 255 AND heart_rate <> 0 
+    ORDER BY timestamp ASC 
+    LIMIT 8;
+  ''');
     await db.close();
 
     heartRateSpots.clear();
+
     for (var i = 0; i < result.length; i++) {
-      final heartRate = result[i]['heart_rate'] ?? result[i]['HEART_RATE'];
-      if (heartRate != null) {
-        heartRateSpots.add(FlSpot(i.toDouble(), (heartRate as int).toDouble()));
+      final heartRateRaw = result[i]['heart_rate'] ?? result[i]['HEART_RATE'];
+      if (heartRateRaw != null) {
+        final int? heartRate = heartRateRaw is int
+            ? heartRateRaw
+            : int.tryParse(heartRateRaw.toString());
+        if (heartRate != null) {
+          heartRateSpots.add(FlSpot(i.toDouble(), heartRate.toDouble()));
+        }
+      }
+    }
+
+    // Store recent heart rate values (within last 10 minutes) to a global variable
+    if (result.isNotEmpty) {
+      final recentTimestampRaw = result[0]['TIMESTAMP'];
+      final int? recentTimestamp = recentTimestampRaw is int
+          ? recentTimestampRaw
+          : int.tryParse(recentTimestampRaw.toString());
+
+      if (recentTimestamp != null && recentTimestamp > tenMinutesAgoMillis) {
+        recentHeartRateSpots.clear();
+        for (var data in result) {
+          final tsRaw = data['timestamp'] ?? data['TIMESTAMP'];
+          final int? ts = tsRaw is int ? tsRaw : int.tryParse(tsRaw.toString());
+
+          if (ts != null && ts > tenMinutesAgoMillis) {
+            final heartRateRaw = data['heart_rate'] ?? data['HEART_RATE'];
+            final int? heartRate = heartRateRaw is int
+                ? heartRateRaw
+                : int.tryParse(heartRateRaw.toString());
+
+            if (heartRate != null) {
+              final xValue = (ts - tenMinutesAgoMillis) / 1000;
+              recentHeartRateSpots.add(FlSpot(xValue, heartRate.toDouble()));
+            }
+          }
+        }
       }
     }
 
     setState(() {});
   }
+
 
   @override
   void initState() {
@@ -170,7 +246,17 @@ class _HomePageState extends State<HomePage> {
             // Your actual FL Chart goes here
             SizedBox(
               height: 180,
-              child: LineChart(
+              child: spots.isEmpty
+                  ? Center(
+                child: Text(
+                  'No data available',
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                    fontSize: 16,
+                  ),
+                ),
+              )
+                  : LineChart(
                 LineChartData(
                   lineBarsData: [
                     LineChartBarData(
@@ -196,16 +282,13 @@ class _HomePageState extends State<HomePage> {
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        interval: 1, // <= ensure every value gets evaluated
+                        interval: 1,
                         reservedSize: 40,
                         getTitlesWidget: (value, meta) {
                           final yValues = spots.map((s) => s.y.round()).toSet();
-
                           const tolerance = 0.01;
                           final isSpotValue = yValues.any((y) => (y - value).abs() < tolerance);
-
                           if (!isSpotValue) return const SizedBox.shrink();
-
                           return Text(
                             value.toStringAsFixed(0),
                             style: TextStyle(
@@ -229,6 +312,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
+
 
             const SizedBox(height: 16),
             ElevatedButton.icon(
