@@ -124,114 +124,118 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-
-
-    appBar: AppBar(
-      title: const Text("Chat"),
-      actions: [
-        _recordingButton(),
-        _videoRecordingButton(),
-        IconButton(
-          icon: Icon(
-            (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty) ? Icons.favorite : Icons.favorite_border,
-            color: (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty) ? Colors.red : Colors.black87,
-          ),
-          onPressed: () {
-            setState(() {
-              showRecentBubble = !showRecentBubble;
-            });
-          },
-          tooltip: 'Show recent heart rate',
-        ),
-      ],
-    ),
-
-
-    body: Stack(
-      children: [
-        StreamBuilder<List<chat_core.Message>>(
-          stream: _chatService.getMessages(widget.chatId)
-          as Stream<List<chat_core.Message>>?,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
-
-            final firestoreMessages = snapshot.data ?? [];
-
-            final mergedMessages = _mergeMessages(firestoreMessages, _messages);
-
-            if (!listEquals(_messages, mergedMessages)) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                setState(() {
-                  _messages
-                    ..clear()
-                    ..addAll(mergedMessages);
-                });
-
-                _chatController.setMessages(mergedMessages); // Also set to controller
-              });
-            }
-
-            return Column(
-              children: [
-                Expanded(
-                  child: Chat(
-                    chatController: _chatController,
-                    currentUserId: _user.id,
-                    resolveUser: resolveUser,
-                    onMessageSend: _isBotThinking ? null : _handleSendPressed,
-                    builders: Builders(
-                      fileMessageBuilder: (context, message, index) =>
-                          FlyerChatFileMessage(message: message, index: index),
-                      textMessageBuilder: (context, message, index) =>
-                          FlyerChatTextMessage(
-                            message: message,
-                            index: index,
-                            showStatus: true,
-                          ),
-                    ),
-                    onMessageTap: _handleMessageTap,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-
-        // The recent heart rate bubble, only visible if showRecentBubble == true
-        if (showRecentBubble) ...[
-          // Full screen transparent tap catcher to close the bubble
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  showRecentBubble = false;
-                });
-              },
-              child: Container(
-                color: Colors.transparent, // invisible layer catches taps
-              ),
+  Widget build(BuildContext context) {
+    // Detect brightness
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    // Pick theme based on brightness
+    final chatTheme = brightness == Brightness.dark ? ChatTheme.dark() : ChatTheme.light();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Chat"),
+        actions: [
+          _recordingButton(),
+          _videoRecordingButton(),
+          IconButton(
+            icon: Icon(
+              (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty)
+                  ? Icons.favorite
+                  : Icons.favorite_border,
+              color: (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty)
+                  ? Colors.red
+                  : Colors.black87,
             ),
-          ),
-
-          // Your bubble, on top
-          Positioned(
-            top: 0,
-            right: 16,
-            child: _buildRecentHeartRateBubble(),
+            onPressed: () {
+              setState(() {
+                showRecentBubble = !showRecentBubble;
+              });
+            },
+            tooltip: 'Show recent heart rate',
           ),
         ],
-      ],
-    ),
+      ),
 
-  );
+      body: Stack(
+        children: [
+          StreamBuilder<List<chat_core.Message>>(
+            stream: _chatService.getMessages(widget.chatId) as Stream<List<chat_core.Message>>?,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              final firestoreMessages = snapshot.data ?? [];
+
+              final mergedMessages = _mergeMessages(firestoreMessages, _messages);
+
+              if (!listEquals(_messages, mergedMessages)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  setState(() {
+                    _messages
+                      ..clear()
+                      ..addAll(mergedMessages);
+                  });
+
+                  _chatController.setMessages(mergedMessages);
+                });
+              }
+
+              return Column(
+                children: [
+                  Expanded(
+                    child: Chat(
+                      chatController: _chatController,
+                      currentUserId: _user.id,
+                      resolveUser: resolveUser,
+                      onMessageSend: _isBotThinking ? null : _handleSendPressed,
+                      builders: Builders(
+                        fileMessageBuilder: (context, message, index) =>
+                            FlyerChatFileMessage(message: message, index: index),
+                        textMessageBuilder: (context, message, index) =>
+                            FlyerChatTextMessage(
+                              message: message,
+                              index: index,
+                              showStatus: true,
+                            ),
+                      ),
+                      onMessageTap: _handleMessageTap,
+                      // Add your chatTheme here if Chat widget supports it:
+                      theme: chatTheme,  // <-- Example: pass theme here if supported
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          if (showRecentBubble) ...[
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    showRecentBubble = false;
+                  });
+                },
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 0,
+              right: 16,
+              child: _buildRecentHeartRateBubble(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
 
   List<chat_core.Message> _mergeMessages(
     List<chat_core.Message> firestoreMessages,
