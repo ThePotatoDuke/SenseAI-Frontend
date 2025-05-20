@@ -20,10 +20,18 @@ class PreviousChatsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // Use color scheme for dynamic colors
+// Use primaryContainer with opacity adjustments if needed
     final primaryColor = theme.colorScheme.primary;
-    final primaryLightColor = theme.colorScheme.primaryContainer;
-    final primaryDarkColor = theme.colorScheme.primaryContainer;
+
+    final primaryLightColor = isDark
+        ? theme.colorScheme.primaryContainer.withAlpha(180) // approx 70% opacity
+        : theme.colorScheme.primaryContainer;
+
+    final primaryDarkColor = isDark
+        ? theme.colorScheme.primaryContainer
+        : theme.colorScheme.primary.withAlpha(255); // full opacity or adjust as you want
+
+
 
     // Text colors for light/dark mode
     final whiteOrLightText = Colors.white;
@@ -42,12 +50,12 @@ class PreviousChatsScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: isDark
                       ? [
-                    theme.colorScheme.secondary,
-                    theme.colorScheme.secondaryContainer,
+                    theme.colorScheme.secondary,          // usually a vibrant accent color
+                    theme.colorScheme.secondaryContainer, // a softer/tinted version of secondary
                   ]
                       : [
-                    Colors.purple.shade700,
-                    Colors.purpleAccent.shade100,
+                    theme.colorScheme.primary,             // main primary color for light mode
+                    theme.colorScheme.primaryContainer,    // lighter/softer variant of primary
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -137,7 +145,9 @@ class PreviousChatsScreen extends StatelessWidget {
                     final DateTime date = timestamp?.toDate() ?? DateTime.now();
                     final String lastMessage = (session['lastMessage'] as String?)?.trim() ?? 'No messages yet';
                     final String chatId = (session['chatId'] as String?) ?? '';
-
+                    final String voiceAnalysis = session['voiceAnalysis'] ?? '-';
+                    final String textAnalysis = session['textAnalysis'] ?? '-';
+                    final String videoAnalysis = session['videoAnalysis'] ?? '-';
                     return Column(
                       children: [
                         Slidable(
@@ -181,8 +191,8 @@ class PreviousChatsScreen extends StatelessWidget {
                                         boxShadow: [
                                           BoxShadow(
                                             color: isDark
-                                                ? Colors.black.withOpacity(0.7)
-                                                : Colors.black.withOpacity(0.1),
+                                                ? Colors.black.withAlpha(70)
+                                                : Colors.black.withAlpha(30),
                                             offset: const Offset(-3, 0),
                                             blurRadius: 6,
                                             spreadRadius: 1,
@@ -294,8 +304,8 @@ class PreviousChatsScreen extends StatelessWidget {
                                                   alignment: Alignment.centerLeft,
                                                   child: Padding(
                                                     padding: const EdgeInsets.only(left: 80),
-                                                    child: const Text(
-                                                      'Audio',
+                                                    child: Text(
+                                                      '${voiceAnalysis}',
                                                       style: TextStyle(color: Colors.white),
                                                       overflow: TextOverflow.visible,
                                                       softWrap: false,
@@ -317,8 +327,8 @@ class PreviousChatsScreen extends StatelessWidget {
                                                   alignment: Alignment.centerLeft,
                                                   child: Padding(
                                                     padding: const EdgeInsets.only(left: 80),
-                                                    child: const Text(
-                                                      'Chat',
+                                                    child:  Text(
+                                                      '${textAnalysis}',
                                                       style: TextStyle(color: Colors.white),
                                                       overflow: TextOverflow.visible,
                                                       softWrap: false,
@@ -340,8 +350,8 @@ class PreviousChatsScreen extends StatelessWidget {
                                                   alignment: Alignment.centerLeft,
                                                   child: Padding(
                                                     padding: const EdgeInsets.only(left: 80),
-                                                    child: const Text(
-                                                      'Photo',
+                                                    child:  Text(
+                                                      '${videoAnalysis}',
                                                       style: TextStyle(color: Colors.white),
                                                       overflow: TextOverflow.visible,
                                                       softWrap: false,

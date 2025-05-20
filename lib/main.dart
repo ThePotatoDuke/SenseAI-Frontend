@@ -25,15 +25,7 @@ Future main() async {
   await dotenv.load(fileName: ".env");
   cameras = await availableCameras();
   if (kIsWeb) {
-    await Firebase.initializeApp(
-      options: FirebaseOptions(
-        apiKey: "AIzaSyCsHDQtI9DItQgSqwy45_y2xG9tDGxuER8",
-        appId: "1:540215271818:web:8b22d4aee01acdce862873",
-        messagingSenderId: "540215271818",
-        projectId: "flutter-firebase-9c136",
-        // Your web Firebase config options
-      ),
-    );
+
   } else {
     await Firebase.initializeApp();
   }
@@ -46,22 +38,57 @@ Future main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Define your color palette
+    const Color primaryLight = Color(0xFF4A90E2); // Blue for light mode
+    const Color primaryDark = Color(0xFF0A74DA);  // Optional unused dark blue
+    const Color secondaryLight = Color(0xFF50E3C2);
+    const Color secondaryDark = Color(0xFF7E57C2); // Purple for dark mode
+
+
     return MaterialApp(
-        theme: ThemeData.light(),
-        darkTheme: ThemeData.dark(),
-        themeMode: ThemeMode.system,
-        // follows device dark/light mode
-        title: 'SenseAI',
-        debugShowCheckedModeBanner: false,
-        home: AnimatedSplashScreen(
-          duration: 1000,
-          splash: 'assets/senseai_logo.png',
-          nextScreen: MainScreen(),
-          splashTransition: SplashTransition.fadeTransition,
-          pageTransitionType: PageTransitionType.fade,
-          // ✅ Safe choice
-          backgroundColor: Colors.white,
-          splashIconSize: 250,
-        ));
+      theme: ThemeData(
+        brightness: Brightness.light,
+        primaryColor: primaryLight,
+        colorScheme: ColorScheme.light(
+          primary: primaryLight,
+          primaryContainer: Color.lerp(primaryLight, Colors.white, 0.4)!, // Lighter blue
+          secondary: secondaryLight,
+          secondaryContainer: Color.lerp(secondaryLight, Colors.white, 0.4)!,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: primaryLight,
+          foregroundColor: Colors.white,
+        ),
+      ),
+
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primaryColor: secondaryDark, // Use teal instead of blue
+        colorScheme: ColorScheme.dark(
+          primary: secondaryDark,
+          primaryContainer: Color.lerp(secondaryDark, Colors.black, 0.4)!, // Darker teal
+          secondary: secondaryDark,
+          secondaryContainer: Color.lerp(secondaryDark, Colors.black, 0.4)!,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: secondaryDark,
+          foregroundColor: Colors.white,
+        ),
+      ),
+
+      themeMode: ThemeMode.system,
+      title: 'SenseAI',
+      debugShowCheckedModeBanner: false,
+      home: AnimatedSplashScreen(
+        duration: 1000,
+        splash: 'assets/senseai_logo.png',
+        nextScreen: MainScreen(),
+        splashTransition: SplashTransition.fadeTransition,
+        pageTransitionType: PageTransitionType.fade,
+        backgroundColor: Colors.white,
+        splashIconSize: 250,
+      ),
+    );
   }
 }
+

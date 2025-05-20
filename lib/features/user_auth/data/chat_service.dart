@@ -31,7 +31,10 @@ class ChatService {
   /// Save a message under a specific session
   Future<void> sendMessage({
     required String chatId,
-    required chat_core.TextMessage message,  // now core model only
+    required chat_core.TextMessage message,
+    String? voiceAnalysis,
+    String? textAnalysis,
+    String? videoAnalysis,
   }) async {
     final uid = _auth.currentUser!.uid;
     final messageRef = _firestore
@@ -42,13 +45,20 @@ class ChatService {
         .collection('messages')
         .doc(message.id);
 
-    await messageRef.set({
+    // Build message data map
+    final messageData = {
       'sender': message.authorId,
       'type': 'text',
       'content': message.text,
       'timestamp': FieldValue.serverTimestamp(),
-    });
+      'voiceAnalysis': voiceAnalysis ?? '-',
+      'textAnalysis': textAnalysis ?? '-',
+      'videoAnalysis': videoAnalysis ?? '-',
+    };
 
+    await messageRef.set(messageData);
+
+    // Update last message summary in chat doc
     await _firestore
         .collection('users')
         .doc(uid)
@@ -59,6 +69,7 @@ class ChatService {
       'lastUpdated': FieldValue.serverTimestamp(),
     });
   }
+
   Future<void> deleteChatSession(String chatId) async {
     final uid = _auth.currentUser!.uid;
 
@@ -107,7 +118,9 @@ class ChatService {
         .collection('chats')
         .doc(chatId)
         .update({
-      'lastMessage': fileType == 'video' ? '📹 Video message' : '🎵 Audio message',
+      'lastMessage': fileType == 'video'
+          ? '📹 Video message'
+          : '🎵 Audio message',
     });
   }
 
@@ -147,7 +160,8 @@ class ChatService {
             createdAt: createdAt ?? DateTime.now(),
             id: doc.id,
             name: p.basename(data['content'] ?? ''),
-            size: 0, // Optional: add size if you can get it
+            size: 0,
+            // Optional: add size if you can get it
             source: data['content'] ?? '',
             mimeType: mimeType,
           );
@@ -164,23 +178,53 @@ class ChatService {
   }
 
 
-
-  /// Load list of existing chat sessions
-  Stream<List<Map<String, dynamic>>> getChatSessions() {
+  Stream<List<Map<String, dynamic>>> getChatSessions() async* {
     final uid = _auth.currentUser!.uid;
 
-    return _firestore
+    final chatSnapshotsStream = _firestore
         .collection('users')
         .doc(uid)
         .collection('chats')
         .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-      return {
-        'chatId': doc.id,
-        'lastMessage': doc['lastMessage'],
-        'createdAt': doc['createdAt'],
-      };
-    }).toList());
+        .snapshots();
+
+    await for (final chatSnapshot in chatSnapshotsStream) {
+      final chatDocs = chatSnapshot.docs;
+
+      // Fetch last message for each chat
+      final futures = chatDocs.map((chatDoc) async {
+        final chatId = chatDoc.id;
+        final chatData = chatDoc.data();
+
+        // Get last message from messages subcollection
+        final lastMessageQuery = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('chats')
+            .doc(chatId)
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+
+        final lastMessageDoc = lastMessageQuery.docs.isNotEmpty
+            ? lastMessageQuery.docs.first
+            : null;
+
+        final lastMessageData = lastMessageDoc?.data() ?? {};
+
+        return {
+          'chatId': chatId,
+          'lastMessage': chatData['lastMessage'],
+          'createdAt': chatData['createdAt'],
+          'voiceAnalysis': lastMessageData['voiceAnalysis'] ?? '-',
+          'textAnalysis': lastMessageData['textAnalysis'] ?? '-',
+          'videoAnalysis': lastMessageData['videoAnalysis'] ?? '-',
+        };
+      }).toList();
+
+      final results = await Future.wait(futures);
+      yield results;
+    }
   }
 }

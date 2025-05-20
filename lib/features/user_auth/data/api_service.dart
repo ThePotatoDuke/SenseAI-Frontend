@@ -33,7 +33,7 @@ class ApiService {
     String? audioPath,
     List<File>? imageFiles,
   }) async {
-    final uri = Uri.parse("https://5f6b-176-41-194-195.ngrok-free.app/analyze/full");
+    final uri = Uri.parse("https://bce2-176-41-194-195.ngrok-free.app/analyze/full");
     var request = http.MultipartRequest('POST', uri);
 
     // Use global recentStressSpots and recentHeartRateSpots directly

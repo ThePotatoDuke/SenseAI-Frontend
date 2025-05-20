@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:senseai/features/user_auth/presentation/pages/login_page.dart';
@@ -35,7 +34,7 @@ class SettingsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Settings",style: TextStyle(color: NeumorphicColors.darkDefaultTextColor),),
+        title: const Text("Settings"),
         centerTitle: true,
         backgroundColor: theme.appBarTheme.backgroundColor ?? primaryColor,
         elevation: 2,
@@ -76,8 +75,8 @@ class SettingsPage extends StatelessWidget {
                   Icons.settings,
                   size: 100,
                   color: isDark
-                      ? theme.colorScheme.secondary
-                      : Colors.deepPurple.shade400,
+                      ? theme.colorScheme.secondaryContainer
+                      : theme.colorScheme.primary,
                 ),
                 const SizedBox(height: 24),
                 Text(

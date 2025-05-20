@@ -7,8 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
 import 'package:flutter_chat_core/flutter_chat_core.dart';
-import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:flyer_chat_file_message/flyer_chat_file_message.dart';
 import 'package:flyer_chat_text_message/flyer_chat_text_message.dart';
@@ -19,10 +19,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
 import 'package:senseai/features/utils/video_processor.dart';
-
-import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
-import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
-import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 
 import '../../../utils/audio_processor.dart';
 import '../../../utils/globals.dart';
@@ -59,11 +55,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   List<chat_core.Message> _messages = [];
 
-  final _chatController = InMemoryChatController();
 
-  final _bot = const types.User(
+  final _bot = const chat_core.User(
     id: 'bot-1234', // Unique bot ID
-    firstName: 'SenseAI Bot', // Bot name
+    name: 'SenseAI Bot', // Bot name
   );
 
   final apiService = ApiService(http.Client());
@@ -120,15 +115,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       ),
     );
   }
+  final _chatController = InMemoryChatController();
 
 
 
   @override
   Widget build(BuildContext context) {
-    // Detect brightness
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final primaryDarkColor = theme.colorScheme.primaryContainer;
+
+    //
     final brightness = MediaQuery.platformBrightnessOf(context);
-    // Pick theme based on brightness
-    final chatTheme = brightness == Brightness.dark ? ChatTheme.dark() : ChatTheme.light();
+    final chatTheme = brightness == Brightness.dark
+        ? ChatTheme.dark().withDarkColors(
+      primary: primaryDarkColor
+    )
+        : ChatTheme.light().withLightColors(
+      primary: primaryColor, // Primary is red only when light theme is active
+    );
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Chat"),
@@ -142,7 +148,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   : Icons.favorite_border,
               color: (recentHeartRateSpots.isNotEmpty || recentStressSpots.isNotEmpty)
                   ? Colors.red
-                  : Colors.black87,
+                  : Theme.of(context).colorScheme.onError,
             ),
             onPressed: () {
               setState(() {
@@ -287,12 +293,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   final decoded = jsonDecode(responseBody);
                   final llamaResponse =
                       decoded['llamaResponse'] ?? 'No response received';
-                  _updateLastMessage(llamaResponse);
+                  _updateLastBotMessage(llamaResponse);
                 } catch (e) {
-                  _updateLastMessage("Error: Failed to parse response");
+                  _updateLastBotMessage("Error: Failed to parse response");
                 }
               }).catchError((error) {
-                _updateLastMessage("Error: Failed to get response: $error");
+                _updateLastBotMessage("Error: Failed to get response: $error");
               });
             } else {
 
@@ -405,7 +411,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           final decoded = jsonDecode(responseBody);
           final llamaResponse =
               decoded['llamaResponse'] ?? 'No response received';
-          _updateLastMessage(llamaResponse);
+          _updateLastBotMessage(llamaResponse);
         }else{
           _addMessage(
             chat_core.TextMessage(
@@ -468,10 +474,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _postBotThinking() {
-    setState(() {
-      _isBotThinking = true;
-    });
-
     final botMessage = chat_core.TextMessage(
       authorId: _bot.id,
       createdAt: DateTime.now().toUtc(),
@@ -483,7 +485,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
 
     _addMessage(botMessage);
+    _chatService.sendMessage(chatId: widget.chatId, message: botMessage);
   }
+
 
   Future<void> _handleSendPressed(String text) async {
     final chatService = ChatService();
@@ -534,12 +538,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         text: llamaResponse,
       );
 
-      _updateLastMessage(
+      _updateLastBotMessage(
           llamaResponse); // update UI "thinking" message if you use one
       _addMessage(botMessage);
-      setState(() {
-        _isBotThinking = false;
-      });
+
 
       // Save bot message to Firestore (or your backend)
       await chatService.sendMessage(
@@ -547,23 +549,37 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         message: botMessage,
       );
     } catch (error) {
-      _updateLastMessage("Error: Failed to get response: $error");
+      print("in catch");
+      _updateLastBotMessage("Error: Failed to get response: $error");
     }
   }
 
-  void _updateLastMessage(String newText) {
-    final index = 0; // Last message index (you might want to double-check this)
+  void _updateLastBotMessage(String newText) {
+    final messages = _chatController.messages;
 
-    if (index >= 0 && _messages[index] is chat_core.TextMessage) {
-      final updatedMessage =
-          (_messages[index] as chat_core.TextMessage).copyWith(
+    if (messages.isNotEmpty &&
+        messages[messages.length-1].authorId == _bot.id &&
+        messages[messages.length-1].id.startsWith('thinking-')) {
+      final oldMessage = messages[messages.length-1] as chat_core.TextMessage;
+
+      final newMessage = oldMessage.copyWith(
         text: newText,
-        // Optionally update createdAt to now or keep the old one:
-        // createdAt: DateTime.now().millisecondsSinceEpoch,
+        metadata: {
+          ...?oldMessage.metadata,
+          'sending': false,
+        },
       );
-      setState(() {
-        _messages[index] = updatedMessage;
-      });
+
+      _chatController.updateMessage(oldMessage, newMessage);
+      print('updating the message');
+
+      // Also update Firestore so your stream stays consistent
+      _chatService.sendMessage(
+        chatId: widget.chatId,
+        message: newMessage,
+      );
     }
   }
+
+
 }
