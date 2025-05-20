@@ -53,8 +53,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     return chat_core.User(id: id); // fallback bot or unknown
   }
 
-  List<chat_core.Message> _messages = [];
-
 
   final _bot = const chat_core.User(
     id: 'bot-1234', // Unique bot ID
@@ -163,30 +161,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       body: Stack(
         children: [
           StreamBuilder<List<chat_core.Message>>(
-            stream: _chatService.getMessages(widget.chatId) as Stream<List<chat_core.Message>>?,
+            stream: _chatService.getMessages(widget.chatId),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
 
               if (snapshot.hasError) {
                 return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final firestoreMessages = snapshot.data ?? [];
-
-              final mergedMessages = _mergeMessages(firestoreMessages, _messages);
-
-              if (!listEquals(_messages, mergedMessages)) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  setState(() {
-                    _messages
-                      ..clear()
-                      ..addAll(mergedMessages);
-                  });
-
-                  _chatController.setMessages(mergedMessages);
-                });
               }
 
               return Column(
@@ -208,8 +190,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             ),
                       ),
                       onMessageTap: _handleMessageTap,
-                      // Add your chatTheme here if Chat widget supports it:
-                      theme: chatTheme,  // <-- Example: pass theme here if supported
+                      theme: chatTheme, // pass theme if supported
                     ),
                   ),
                 ],
@@ -240,23 +221,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ],
       ),
     );
+
   }
 
-
-  List<chat_core.Message> _mergeMessages(
-    List<chat_core.Message> firestoreMessages,
-    List<chat_core.Message> localMessages,
-  ) {
-    final Map<String, chat_core.Message> merged = {
-      for (final msg in firestoreMessages) msg.id: msg,
-    };
-
-    for (final localMsg in localMessages) {
-      merged[localMsg.id] = localMsg;
-    }
-
-    return merged.values.toList();
-  }
 
   _recordingButton() {
     return IconButton(
@@ -431,9 +398,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   void _addMessage(chat_core.Message message) {
-    setState(() {
-      _messages.insert(0, message);
-    });
     _chatController.insertMessage(message);
   }
   void addMessageFromPath(String filePath) async {

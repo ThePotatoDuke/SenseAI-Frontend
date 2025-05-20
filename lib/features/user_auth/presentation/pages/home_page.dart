@@ -9,7 +9,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 
-
 import '../../../utils/globals.dart';
 import 'chat_page.dart';
 
@@ -20,16 +19,14 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-
-
-
 // Your other imports...
 
 class _HomePageState extends State<HomePage> {
   List<FlSpot> stressSpots = [];
   List<FlSpot> heartRateSpots = [];
 
-  Future<void> _sendIntent(String action, {Map<String, dynamic>? extras}) async {
+  Future<void> _sendIntent(String action,
+      {Map<String, dynamic>? extras}) async {
     final intent = AndroidIntent(
       action: action,
       package: 'nodomain.freeyourgadget.gadgetbridge',
@@ -68,10 +65,18 @@ class _HomePageState extends State<HomePage> {
 
     final db = await openDatabase(path);
     final result = await db.rawQuery('''
-    SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, stress 
-    FROM HUAMI_STRESS_SAMPLE 
-    ORDER BY timestamp ASC
-    LIMIT 8;
+    SELECT *
+FROM (
+  SELECT 
+    timestamp, 
+    datetime(timestamp / 1000, 'unixepoch') AS readable_time, 
+    stress 
+  FROM HUAMI_STRESS_SAMPLE 
+  ORDER BY timestamp DESC 
+  LIMIT 8
+) AS recent
+ORDER BY timestamp ASC;
+
   ''');
     print('Query result: $result');
     await db.close();
@@ -81,9 +86,8 @@ class _HomePageState extends State<HomePage> {
     for (var i = 0; i < result.length; i++) {
       final stressRaw = result[i]['stress'] ?? result[i]['STRESS'];
       if (stressRaw != null) {
-        final int? stress = stressRaw is int
-            ? stressRaw
-            : int.tryParse(stressRaw.toString());
+        final int? stress =
+            stressRaw is int ? stressRaw : int.tryParse(stressRaw.toString());
         if (stress != null) {
           stressSpots.add(FlSpot(i.toDouble(), stress.toDouble()));
         }
@@ -123,8 +127,6 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
-
-
   Future<void> fetchHeartRateData() async {
     final path = '/storage/emulated/0/Download/Gadgetbridge.db';
     final file = File(path);
@@ -132,53 +134,67 @@ class _HomePageState extends State<HomePage> {
 
     final nowMillis = DateTime.now().millisecondsSinceEpoch;
     final tenMinutesAgoMillis = nowMillis - (10 * 60 * 1000);
+    final nowSecs = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final tenMinutesAgoSecs = nowSecs - (10 * 60);
 
     final db = await openDatabase(path);
     final result = await db.rawQuery('''
-    SELECT timestamp, datetime(timestamp / 1000, 'unixepoch') AS readable_time, heart_rate 
-    FROM MI_BAND_ACTIVITY_SAMPLE 
-    WHERE heart_rate <> 255 AND heart_rate <> 0 
-    ORDER BY timestamp ASC 
-    LIMIT 8;
-  ''');
+      -- get the 8 most recent rows
+SELECT *
+FROM (
+  SELECT
+    timestamp,
+    datetime(datetime(timestamp, 'unixepoch')
+) AS readable_time,
+    heart_rate
+  FROM MI_BAND_ACTIVITY_SAMPLE
+  WHERE heart_rate NOT IN (0,255)
+  ORDER BY timestamp DESC
+  LIMIT 8
+) AS recent
+-- now sort them ascending for plotting
+ORDER BY timestamp ASC;
+
+    ''');
     await db.close();
 
     heartRateSpots.clear();
 
     for (var i = 0; i < result.length; i++) {
-      final heartRateRaw = result[i]['heart_rate'] ?? result[i]['HEART_RATE'];
-      if (heartRateRaw != null) {
-        final int? heartRate = heartRateRaw is int
-            ? heartRateRaw
-            : int.tryParse(heartRateRaw.toString());
-        if (heartRate != null) {
-          heartRateSpots.add(FlSpot(i.toDouble(), heartRate.toDouble()));
+      final heart_rateRaw = result[i]['heart_rate'] ?? result[i]['HEART_RATE'];
+      if (heart_rateRaw != null) {
+        final int? heart_rate = heart_rateRaw is int
+            ? heart_rateRaw
+            : int.tryParse(heart_rateRaw.toString());
+        if (heart_rate != null) {
+          heartRateSpots.add(FlSpot(i.toDouble(), heart_rate.toDouble()));
         }
       }
     }
 
-    // Store recent heart rate values (within last 10 minutes) to a global variable
     if (result.isNotEmpty) {
-      final recentTimestampRaw = result[0]['TIMESTAMP'];
+      final row = result[result.length - 1]; // newest sample
+      final recentTimestampRaw = row['timestamp'] ?? row['TIMESTAMP'];
       final int? recentTimestamp = recentTimestampRaw is int
           ? recentTimestampRaw
           : int.tryParse(recentTimestampRaw.toString());
 
-      if (recentTimestamp != null && recentTimestamp > tenMinutesAgoMillis) {
+      if (recentTimestamp != null && recentTimestamp > tenMinutesAgoSecs) {
         recentHeartRateSpots.clear();
+
         for (var data in result) {
           final tsRaw = data['timestamp'] ?? data['TIMESTAMP'];
           final int? ts = tsRaw is int ? tsRaw : int.tryParse(tsRaw.toString());
 
-          if (ts != null && ts > tenMinutesAgoMillis) {
-            final heartRateRaw = data['heart_rate'] ?? data['HEART_RATE'];
-            final int? heartRate = heartRateRaw is int
-                ? heartRateRaw
-                : int.tryParse(heartRateRaw.toString());
+          if (ts != null && ts > tenMinutesAgoSecs) {
+            final heart_rateRaw = data['heart_rate'] ?? data['HEART_RATE'];
+            final int? heart_rate = heart_rateRaw is int
+                ? heart_rateRaw
+                : int.tryParse(heart_rateRaw.toString());
 
-            if (heartRate != null) {
-              final xValue = (ts - tenMinutesAgoMillis) / 1000;
-              recentHeartRateSpots.add(FlSpot(xValue, heartRate.toDouble()));
+            if (heart_rate != null) {
+              final xValue = (ts - tenMinutesAgoSecs).toDouble();
+              recentHeartRateSpots.add(FlSpot(xValue, heart_rate.toDouble()));
             }
           }
         }
@@ -187,7 +203,6 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {});
   }
-
 
   @override
   void initState() {
@@ -248,86 +263,93 @@ class _HomePageState extends State<HomePage> {
               height: 180,
               child: spots.isEmpty
                   ? Center(
-                child: Text(
-                  'No data available',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 16,
-                  ),
-                ),
-              )
-                  : LineChart(
-                LineChartData(
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: spots,
-                      isCurved: true,
-                      gradient: LinearGradient(colors: gradientColors),
-                      barWidth: 3,
-                      dotData: FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        gradient: LinearGradient(
-                          colors: gradientColors
-                              .map((color) => color.withOpacity(0.3))
-                              .toList(),
+                      child: Text(
+                        'No data available',
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                          fontSize: 16,
                         ),
                       ),
-                    ),
-                  ],
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        interval: 1,
-                        reservedSize: 40,
-                        getTitlesWidget: (value, meta) {
-                          final yValues = spots.map((s) => s.y.round()).toSet();
-                          const tolerance = 0.01;
-                          final isSpotValue = yValues.any((y) => (y - value).abs() < tolerance);
-                          if (!isSpotValue) return const SizedBox.shrink();
-                          return Text(
-                            value.toStringAsFixed(0),
-                            style: TextStyle(
-                              color: Theme.of(context).textTheme.bodyMedium?.color,
-                              fontSize: 12,
+                    )
+                  : LineChart(
+                      LineChartData(
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: spots,
+                            isCurved: true,
+                            gradient: LinearGradient(colors: gradientColors),
+                            barWidth: 3,
+                            dotData: FlDotData(show: true),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                colors: gradientColors
+                                    .map((color) => color.withOpacity(0.3))
+                                    .toList(),
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                          );
-                        },
+                          ),
+                        ],
+                        titlesData: FlTitlesData(
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: 5,
+                              reservedSize: 40,
+                              getTitlesWidget: (value, meta) {
+                                final yValues =
+                                    spots.map((s) => s.y.round()).toSet();
+                                const tolerance = 0.01;
+                                final isSpotValue = yValues
+                                    .any((y) => (y - value).abs() < tolerance);
+                                if (!isSpotValue)
+                                  return const SizedBox.shrink();
+                                return Text(
+                                  value.toStringAsFixed(0),
+                                  style: TextStyle(
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color,
+                                    fontSize: 12,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                );
+                              },
+                            ),
+                          ),
+                          rightTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                        ),
+                        gridData: FlGridData(show: true),
+                        borderData: FlBorderData(show: false),
                       ),
                     ),
-                    rightTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  gridData: FlGridData(show: true),
-                  borderData: FlBorderData(show: false),
-                ),
-              ),
             ),
-
 
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: onRefresh,
-              icon: Icon(Icons.refresh, color: Colors.white), // icon color explicitly white
+              icon: Icon(Icons.refresh, color: Colors.white),
+              // icon color explicitly white
               label: Text(
                 'Refresh',
-                style: TextStyle(color: Colors.white), // text color explicitly white
+                style: TextStyle(
+                    color: Colors.white), // text color explicitly white
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,  // explicitly set text/icon color here
+                foregroundColor:
+                    Colors.white, // explicitly set text/icon color here
               ),
             ),
-
           ],
         ),
       ),
@@ -372,6 +394,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-
-
