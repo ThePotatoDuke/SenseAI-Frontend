@@ -248,12 +248,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               isRecordingAudio = false;
               recordingPath = filePath;
             });
+
             await _chatService.sendFileMessageLocalOnly(
               filePath: filePath,
               chatId: widget.chatId,
               fileType: 'audio',
             );
-            var transcript = await transcribeAudio(recordingPath!);
+
+            String transcript = '';
+            try {
+              transcript = await transcribeAudio(recordingPath!);
+            } catch (e) {
+              print('Transcription error: $e');
+            }
+
             if (transcript.isNotEmpty) {
               _addMessage(
                 chat_core.TextMessage(
@@ -267,7 +275,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
               apiService
                   .sendMultipartRequest(
-                      text: transcript, audioPath: recordingPath)
+                  text: transcript, audioPath: recordingPath)
                   .then((responseBody) {
                 try {
                   final decoded = jsonDecode(responseBody);
@@ -281,7 +289,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 _updateLastBotMessage("Error: Failed to get response: $error");
               });
             } else {
-
               _addMessage(
                 chat_core.TextMessage(
                   authorId: _user.id,
@@ -295,13 +302,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         } else {
           if (await audioRecorder.hasPermission()) {
             final Directory appDocumentsDir =
-                await getApplicationDocumentsDirectory();
+            await getApplicationDocumentsDirectory();
             final String audioDirectory =
                 '${appDocumentsDir.path}/Audio/SenseAI/';
             await Directory(audioDirectory).create(recursive: true);
-            final String filePath = p.join(audioDirectory,
-                'audio_${DateTime.now().millisecondsSinceEpoch}.wav');
-            await audioRecorder.start(const RecordConfig(), path: filePath);
+            final String filePath = p.join(
+              audioDirectory,
+              'audio_${DateTime.now().millisecondsSinceEpoch}.wav',
+            );
+            await audioRecorder.start(
+              const RecordConfig(
+                encoder: AudioEncoder.wav,
+                sampleRate: 44100,
+                bitRate: 128000,
+              ),
+              path: filePath,
+            );
+
             setState(() {
               isRecordingAudio = true;
               recordingPath = null;
@@ -312,6 +329,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       icon: Icon(isRecordingAudio ? Icons.stop : Icons.mic),
     );
   }
+
 
   Widget _videoRecordingButton() {
     return IconButton(
@@ -345,70 +363,73 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   Future<void> handleVideoProcessingAndSending(BuildContext context) async {
     final videoPath = await navigateAndGetVideo(context);
+
+    if (videoPath == null) return;
+
     await _chatService.sendFileMessageLocalOnly(
-      filePath: videoPath!,
+      filePath: videoPath,
       chatId: widget.chatId,
       fileType: 'video',
     );
-    if (videoPath != null) {
-      final newDirPath =
-          '${(await getApplicationDocumentsDirectory()).path}/$widget.chatId';
 
-      final newFilePath = '$newDirPath/${p.basename(videoPath)}';
+    final newDirPath =
+        '${(await getApplicationDocumentsDirectory()).path}/${widget.chatId}';
+    final newFilePath = '$newDirPath/${p.basename(videoPath)}';
 
-// Create directory if it doesn't exist
-      final newDir = Directory(newDirPath);
-      if (!await newDir.exists()) {
-        await newDir.create(recursive: true);
-      }
+    final newDir = Directory(newDirPath);
+    if (!await newDir.exists()) {
+      await newDir.create(recursive: true);
+    }
 
-// Now copy the file
-      await File(videoPath).copy(newFilePath);
+    await File(videoPath).copy(newFilePath);
 
-      try {
-        // Step 3: Process the video
-        final processedData = await _processor.processVideo(videoPath);
+    try {
+      final processedData = await _processor.processVideo(videoPath);
 
-        // Step 4: If transcript exists, add text message
-        if (processedData.transcript.isNotEmpty) {
-          _addMessage(
-            chat_core.TextMessage(
-              authorId: _user.id,
-              id: DateTime.now().toIso8601String(),
-              text: processedData.transcript,
-              createdAt: DateTime.now().toUtc(),
-            ),
-          );
-          _postBotThinking();
-
-          // Step 5: Send processed data to server (API call)
-          final responseBody = await apiService.sendMultipartRequest(
+      if (processedData.transcript.isNotEmpty) {
+        _addMessage(
+          chat_core.TextMessage(
+            authorId: _user.id,
+            id: DateTime.now().toIso8601String(),
             text: processedData.transcript,
-            audioPath: processedData.audioPath,
-            imageFiles: processedData.resizedFrames,
-          );
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+        _postBotThinking();
 
-          final decoded = jsonDecode(responseBody);
-          final llamaResponse =
-              decoded['llamaResponse'] ?? 'No response received';
-          _updateLastBotMessage(llamaResponse);
-        }else{
-          _addMessage(
-            chat_core.TextMessage(
-              authorId: _user.id,
-              id: DateTime.now().toIso8601String(),
-              text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
-              createdAt: DateTime.now().toUtc(),
-            ),
-          );
-        }
+        final responseBody = await apiService.sendMultipartRequest(
+          text: processedData.transcript,
+          audioPath: processedData.audioPath,
+          imageFiles: processedData.resizedFrames,
+        );
 
-
-      } catch (e) {
-        print("Error handling video processing or sending: $e");
+        final decoded = jsonDecode(responseBody);
+        final llamaResponse = decoded['llamaResponse'] ?? 'No response received';
+        _updateLastBotMessage(llamaResponse);
+      } else {
+        _addMessage(
+          chat_core.TextMessage(
+            authorId: _user.id,
+            id: DateTime.now().toIso8601String(),
+            text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
       }
+    } catch (e) {
+      print("Error handling video processing or sending: $e");
+
+      _addMessage(
+        chat_core.TextMessage(
+          authorId: _user.id,
+          id: DateTime.now().toIso8601String(),
+          text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
+          createdAt: DateTime.now().toUtc(),
+        ),
+      );
     }
   }
+
 
   void _addMessage(chat_core.Message message) {
     _chatController.insertMessage(message);
@@ -462,7 +483,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
 
     _addMessage(botMessage);
-    _chatService.sendMessage(chatId: widget.chatId, message: botMessage);
   }
 
 
