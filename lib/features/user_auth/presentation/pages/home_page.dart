@@ -41,11 +41,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> refreshData() async {
+    bool granted = await requestStoragePermission();
+    if (!granted) {
+      // Handle permission denial gracefully, e.g. show a message or return early
+      print('Storage permission denied. Cannot refresh data.');
+      return;
+    }
+
+    // Permission granted, continue with refresh
     await _sendIntent(
       'nodomain.freeyourgadget.gadgetbridge.command.ACTIVITY_SYNC',
       extras: {'dataTypesHex': '0x00000040'},
     );
     await Future.delayed(const Duration(seconds: 2));
+
     await _sendIntent(
       'nodomain.freeyourgadget.gadgetbridge.command.TRIGGER_EXPORT',
     );
@@ -53,6 +62,24 @@ class _HomePageState extends State<HomePage> {
 
     await fetchStressData();
     await fetchHeartRateData();
+  }
+
+
+  Future<bool> requestStoragePermission() async {
+    // For Android 11+ (API 30+), you might want MANAGE_EXTERNAL_STORAGE:
+    if (await Permission.manageExternalStorage.isGranted) {
+      return true;
+    }
+
+    // Request permission
+    final status = await Permission.manageExternalStorage.request();
+
+    if (status.isGranted) {
+      return true;
+    } else {
+      // permission denied (or permanently denied)
+      return false;
+    }
   }
 
   Future<void> fetchStressData() async {
@@ -209,6 +236,9 @@ ORDER BY timestamp ASC;
     super.initState();
     fetchStressData();
     fetchHeartRateData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await refreshData();
+    });
   }
 
   Widget buildSectionTitle(String title) {

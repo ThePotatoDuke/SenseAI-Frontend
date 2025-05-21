@@ -159,8 +159,9 @@ class PreviousChatsScreen extends StatelessWidget {
                                 onPressed: (context) {
                                   // your existing slidable action (e.g., more options)
                                 },
+
                                 backgroundColor: primaryColor,
-                                foregroundColor: Colors.white,
+                                foregroundColor: Colors.transparent, // hides the icon
                                 icon: Icons.more_vert,
                               ),
                             ],
