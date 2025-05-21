@@ -3,14 +3,12 @@ import 'dart:io';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../utils/globals.dart';
-import 'chat_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -159,8 +157,6 @@ ORDER BY timestamp ASC;
     final file = File(path);
     if (!await file.exists()) throw Exception('Database not found at $path');
 
-    final nowMillis = DateTime.now().millisecondsSinceEpoch;
-    final tenMinutesAgoMillis = nowMillis - (10 * 60 * 1000);
     final nowSecs = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final tenMinutesAgoSecs = nowSecs - (10 * 60);
 
@@ -388,8 +384,6 @@ ORDER BY timestamp ASC;
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = Theme.of(context).cardColor;
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(

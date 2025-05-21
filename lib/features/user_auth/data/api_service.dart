@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
 
 import '../../utils/globals.dart';

@@ -4,19 +4,9 @@ import 'package:ffmpeg_kit_flutter/ffmpeg_kit_config.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:page_transition/page_transition.dart';
-
-// Import Firebase Auth
-import 'package:senseai/features/app/splash_screen/splash_screen.dart';
-import 'package:senseai/features/user_auth/presentation/pages/chat_page.dart';
-import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
-import 'package:senseai/features/user_auth/presentation/pages/login_page.dart';
-import 'package:senseai/features/user_auth/presentation/pages/main_screen.dart';
-import 'package:senseai/features/user_auth/presentation/pages/sign_up_page.dart';
-import 'package:senseai/features/user_auth/presentation/pages/video_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-import 'features/user_auth/firebase_auth_implementation/auth_checker.dart'; // import dotenv
+import 'package:page_transition/page_transition.dart';
+import 'package:senseai/features/user_auth/presentation/pages/main_screen.dart';
 
 List<CameraDescription> cameras = [];
 

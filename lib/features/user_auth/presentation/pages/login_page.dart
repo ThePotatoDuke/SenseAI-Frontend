@@ -1,13 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:senseai/features/user_auth/presentation/pages/chat_page.dart';
-import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:senseai/features/user_auth/presentation/pages/main_screen.dart';
 import 'package:senseai/features/user_auth/presentation/pages/sign_up_page.dart';
 import 'package:senseai/features/user_auth/presentation/widgets/form_container_widget.dart';
 import 'package:senseai/global/common/toast.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../firebase_auth_implementation/firebase_auth_services.dart';
 
