@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -64,12 +65,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final ChatService _chatService = ChatService();
 
   late final chat_core.User _user;
-
+  late final StreamSubscription<List<chat_core.Message>> _messageSub;
   @override
   void initState() {
     super.initState();
     _processor = VideoProcessor(apiService);
     _user = chat_core.User(id: FirebaseAuth.instance.currentUser!.uid);
+    _messageSub = _chatService.getMessages(widget.chatId).listen((messages) {
+      if (!_areListsEqual(_lastMessages, messages)) {
+        _lastMessages = List.from(messages);
+
+        if (mounted && !_isBotThinking) {
+          _chatController.setMessages(messages);
+        }
+      }
+    });
   }
 
   final AudioRecorder audioRecorder = AudioRecorder();
@@ -86,6 +96,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
     super.dispose();
+    _messageSub.cancel();
   }
   Widget _buildRecentHeartRateBubble() {
     // Get the most recent stress spot (last item)
@@ -116,13 +127,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final _chatController = InMemoryChatController();
 
 
+  List<chat_core.Message> _lastMessages = [];
+  // Add _areListsEqual here too
+  bool _areListsEqual(List<chat_core.Message> a, List<chat_core.Message> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id) return false;
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
     final primaryDarkColor = theme.colorScheme.primaryContainer;
-    List<chat_core.Message> _lastMessages = [];
 
     final brightness = MediaQuery.platformBrightnessOf(context);
     final chatTheme = brightness == Brightness.dark
@@ -132,14 +151,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         : ChatTheme.light().withLightColors(
       primary: primaryColor, // Primary is red only when light theme is active
     );
-
-    bool _areListsEqual(List<Message> a, List<Message> b) {
-      if (a.length != b.length) return false;
-      for (int i = 0; i < a.length; i++) {
-        if (a[i].id != b[i].id) return false; // Assuming messages have unique IDs
-      }
-      return true;
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -167,62 +178,32 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       ),
       body: Stack(
         children: [
-          StreamBuilder<List<chat_core.Message>>(
-            stream: _chatService.getMessages(widget.chatId).distinct(), // Add .distinct() to prevent duplicate emissions
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final messages = snapshot.data ?? [];
-
-              // Only update controller if messages actually changed
-              if (messages.isNotEmpty && !_areListsEqual(_lastMessages, messages)) {
-                _lastMessages = List.from(messages); // Update the tracked messages
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted && !_isBotThinking) {
-                    _chatController.setMessages(messages);
-                  }
-                });
-              }
-
-
-
-              return Column(
-                children: [
-                  Expanded(
-                    child: Chat(
-                      key: ValueKey(widget.chatId),
-                      chatController: _chatController,
-                      currentUserId: _user.id,
-                      resolveUser: resolveUser,
-                      onMessageSend: _isBotThinking ? null : _handleSendPressed,
-                      builders: Builders(
-                        fileMessageBuilder: (context, message, index) =>
-                            FlyerChatFileMessage(message: message, index: index),
-                        textMessageBuilder: (context, message, index) =>
-                            FlyerChatTextMessage(
-                              message: message,
-                              index: index,
-                              showStatus: true,
-                            ),
-                      ),
-                      onMessageTap: _handleMessageTap,
-                      theme: chatTheme,
+          Expanded(
+            child: Chat(
+              key: ValueKey(widget.chatId),
+              chatController: _chatController,
+              currentUserId: _user.id,
+              resolveUser: resolveUser,
+              onMessageSend: _isBotThinking ? null : _handleSendPressed,
+              builders: Builders(
+                fileMessageBuilder: (context, message, index) =>
+                    FlyerChatFileMessage(message: message, index: index),
+                textMessageBuilder: (context, message, index) =>
+                    FlyerChatTextMessage(
+                      message: message,
+                      index: index,
+                      showStatus: true,
                     ),
-                  ),
-                ],
-              );
-            },
+              ),
+              onMessageTap: _handleMessageTap,
+              theme: chatTheme,
+            ),
           ),
+
 
           if (showRecentBubble) ...[
             Positioned(
-              top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+              top: 0,
               right: 16,
               child: Material(
                 type: MaterialType.transparency,
