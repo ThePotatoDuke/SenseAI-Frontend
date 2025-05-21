@@ -192,7 +192,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   Expanded(
                     child: Chat(
-                      key: ValueKey('${widget.chatId}_${messages.length}'), // More specific key
                       chatController: _chatController,
                       currentUserId: _user.id,
                       resolveUser: resolveUser,
