@@ -122,8 +122,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
     final primaryDarkColor = theme.colorScheme.primaryContainer;
+    List<chat_core.Message> _lastMessages = [];
 
-    //
     final brightness = MediaQuery.platformBrightnessOf(context);
     final chatTheme = brightness == Brightness.dark
         ? ChatTheme.dark().withDarkColors(
@@ -132,6 +132,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         : ChatTheme.light().withLightColors(
       primary: primaryColor, // Primary is red only when light theme is active
     );
+
+    bool _areListsEqual(List<Message> a, List<Message> b) {
+      if (a.length != b.length) return false;
+      for (int i = 0; i < a.length; i++) {
+        if (a[i].id != b[i].id) return false; // Assuming messages have unique IDs
+      }
+      return true;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -170,17 +178,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 return Center(child: Text('Error: ${snapshot.error}'));
               }
 
-              // Use a local variable to track the last message list
               final messages = snapshot.data ?? [];
-              bool _areListsEqual(List<Message> a, List<Message> b) {
-                if (a.length != b.length) return false;
-                for (int i = 0; i < a.length; i++) {
-                  if (a[i].id != b[i].id) return false; // Assuming messages have unique IDs
-                }
-                return true;
-              }
+
               // Only update controller if messages actually changed
-              if (messages.isNotEmpty && !_areListsEqual(_chatController.messages, messages)) {
+              if (messages.isNotEmpty && !_areListsEqual(_lastMessages, messages)) {
+                _lastMessages = List.from(messages); // Update the tracked messages
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted && !_isBotThinking) {
                     _chatController.setMessages(messages);
@@ -188,10 +190,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 });
               }
 
+
+
               return Column(
                 children: [
                   Expanded(
                     child: Chat(
+                      key: ValueKey(widget.chatId),
                       chatController: _chatController,
                       currentUserId: _user.id,
                       resolveUser: resolveUser,
@@ -216,12 +221,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ),
 
           if (showRecentBubble) ...[
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => showRecentBubble = false),
-              ),
-            ),
             Positioned(
               top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
               right: 16,
@@ -234,7 +233,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ],
       ),
     );
-
   }
 
 
@@ -260,6 +258,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               transcript = await transcribeAudio(recordingPath!);
             } catch (e) {
               print('Transcription error: $e');
+
             }
 
             if (transcript.isNotEmpty) {
@@ -291,7 +290,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             } else {
               _addMessage(
                 chat_core.TextMessage(
-                  authorId: _user.id,
+                  authorId: _bot.id,
                   id: DateTime.now().toIso8601String(),
                   text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
                   createdAt: DateTime.now().toUtc(),
@@ -329,6 +328,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       icon: Icon(isRecordingAudio ? Icons.stop : Icons.mic),
     );
   }
+
 
 
   Widget _videoRecordingButton() {
@@ -409,7 +409,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       } else {
         _addMessage(
           chat_core.TextMessage(
-            authorId: _user.id,
+            authorId: _bot.id,
             id: DateTime.now().toIso8601String(),
             text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
             createdAt: DateTime.now().toUtc(),
@@ -421,7 +421,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
       _addMessage(
         chat_core.TextMessage(
-          authorId: _user.id,
+          authorId: _bot.id,
           id: DateTime.now().toIso8601String(),
           text: 'Sorry, I could not hear you. Can you try again? 🎧🤔',
           createdAt: DateTime.now().toUtc(),
@@ -431,26 +431,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
 
+
   void _addMessage(chat_core.Message message) {
     _chatController.insertMessage(message);
-  }
-  void addMessageFromPath(String filePath) async {
-    if (filePath.isNotEmpty) {
-      final file = File(filePath);
-      final size = await file.length();
-
-      final message = chat_core.FileMessage(
-        authorId: _user.id,
-        createdAt: DateTime.now().toUtc(),
-        id: randomString(),
-        name: p.basename(filePath),
-        size: size,
-        source: filePath,
-        mimeType: 'video/mp4',
-      );
-
-      _addMessage(message);
-    }
   }
 
   void _handleMessageTap(
@@ -577,6 +560,4 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       );
     }
   }
-
-
 }
