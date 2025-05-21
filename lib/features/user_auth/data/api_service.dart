@@ -36,7 +36,7 @@ class ApiService {
     final uri = Uri.parse("https://9b99-176-41-194-195.ngrok-free.app/analyze/full");
     var request = http.MultipartRequest('POST', uri);
 
-
+    // Use global recentStressSpots and recentHeartRateSpots directly
     if (recentStressSpots.isNotEmpty) {
       final latestStress = recentStressSpots.last.y.toInt();
       request.fields['stress'] = latestStress.toString();
