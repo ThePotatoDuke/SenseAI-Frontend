@@ -157,11 +157,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ),
         ],
       ),
-
       body: Stack(
         children: [
           StreamBuilder<List<chat_core.Message>>(
-            stream: _chatService.getMessages(widget.chatId),
+            stream: _chatService.getMessages(widget.chatId).distinct(), // Add .distinct() to prevent duplicate emissions
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -171,10 +170,29 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 return Center(child: Text('Error: ${snapshot.error}'));
               }
 
+              // Use a local variable to track the last message list
+              final messages = snapshot.data ?? [];
+              bool _areListsEqual(List<Message> a, List<Message> b) {
+                if (a.length != b.length) return false;
+                for (int i = 0; i < a.length; i++) {
+                  if (a[i].id != b[i].id) return false; // Assuming messages have unique IDs
+                }
+                return true;
+              }
+              // Only update controller if messages actually changed
+              if (messages.isNotEmpty && !_areListsEqual(_chatController.messages, messages)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted && !_isBotThinking) {
+                    _chatController.setMessages(messages);
+                  }
+                });
+              }
+
               return Column(
                 children: [
                   Expanded(
                     child: Chat(
+                      key: ValueKey('${widget.chatId}_${messages.length}'), // More specific key
                       chatController: _chatController,
                       currentUserId: _user.id,
                       resolveUser: resolveUser,
@@ -190,7 +208,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             ),
                       ),
                       onMessageTap: _handleMessageTap,
-                      theme: chatTheme, // pass theme if supported
+                      theme: chatTheme,
                     ),
                   ),
                 ],
@@ -201,21 +219,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           if (showRecentBubble) ...[
             Positioned.fill(
               child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    showRecentBubble = false;
-                  });
-                },
-                child: Container(
-                  color: Colors.transparent,
-                ),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => showRecentBubble = false),
               ),
             ),
-
             Positioned(
-              top: 0,
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
               right: 16,
-              child: _buildRecentHeartRateBubble(),
+              child: Material(
+                type: MaterialType.transparency,
+                child: _buildRecentHeartRateBubble(),
+              ),
             ),
           ],
         ],
