@@ -520,13 +520,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     }
   }
 
-  void _updateLastBotMessage(String newText) {
+  void _updateLastBotMessage(
+      String newText, {
+        String? chatId,
+        dynamic voiceAnalysis,
+        dynamic textAnalysis,
+        dynamic videoAnalysis,
+      }) {
     final messages = _chatController.messages;
 
     if (messages.isNotEmpty &&
-        messages[messages.length-1].authorId == _bot.id &&
-        messages[messages.length-1].id.startsWith('thinking-')) {
-      final oldMessage = messages[messages.length-1] as chat_core.TextMessage;
+        messages.last.authorId == _bot.id &&
+        messages.last.id.startsWith('thinking-')) {
+      final oldMessage = messages.last as chat_core.TextMessage;
 
       final newMessage = oldMessage.copyWith(
         text: newText,
@@ -539,13 +545,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       _chatController.updateMessage(oldMessage, newMessage);
       print('updating the message');
 
-      // Also update Firestore so your stream stays consistent
-      _chatService.sendMessage(
-        chatId: widget.chatId,
-        message: newMessage,
-      );
+      if (chatId != null) {
+        _chatService.sendMessage(
+          chatId: chatId,
+          message: newMessage,
+          voiceAnalysis: voiceAnalysis,
+          textAnalysis: textAnalysis,
+          videoAnalysis: videoAnalysis,
+        );
+      }
     }
   }
+
   Future<void> _handleLlamaResponse({
     required String chatId,
     required String responseBody,
@@ -558,26 +569,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       final textAnalysis = decoded['textEmotion'];
       final videoAnalysis = decoded['faceEmotion'];
 
-      final botMessage = chat_core.TextMessage(
-        authorId: _bot.id,
-        createdAt: DateTime.now().toUtc(),
-        id: randomString(),
-        text: llamaResponse,
-      );
+      // Just update the existing "thinking..." message
+      _updateLastBotMessage(llamaResponse,
+          chatId: chatId,
+          voiceAnalysis: voiceAnalysis,
+          textAnalysis: textAnalysis,
+          videoAnalysis: videoAnalysis);
 
-      _updateLastBotMessage(llamaResponse);
-
-      await _chatService.sendMessage(
-        chatId: chatId,
-        message: botMessage,
-        voiceAnalysis: voiceAnalysis,
-        textAnalysis: textAnalysis,
-        videoAnalysis: videoAnalysis,
-      );
     } catch (e) {
       print("Failed to process llama response: $e");
       _updateLastBotMessage("Error: Failed to process response.");
     }
   }
-
 }
