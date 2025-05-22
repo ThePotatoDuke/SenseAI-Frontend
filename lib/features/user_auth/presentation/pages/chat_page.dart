@@ -438,6 +438,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     _chatController.insertMessage(message);
   }
 
+
   void _handleMessageTap(
     chat_core.Message message, {
     int? index,
