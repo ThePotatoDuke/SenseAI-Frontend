@@ -149,7 +149,9 @@ ORDER BY timestamp ASC;
       }
     }
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> fetchHeartRateData() async {
@@ -224,7 +226,9 @@ ORDER BY timestamp ASC;
       }
     }
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
