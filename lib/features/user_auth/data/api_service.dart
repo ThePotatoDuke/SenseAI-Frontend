@@ -9,7 +9,7 @@ class ApiService {
   final http.Client client;
 
   ApiService(this.client);
-
+//test for push
   Future<String> sendText(String text) async {
     final url =
         Uri.parse("https://a576-176-41-194-195.ngrok-free.app/analyze/text");
