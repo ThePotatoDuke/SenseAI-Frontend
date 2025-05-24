@@ -258,7 +258,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   createdAt: DateTime.now().toUtc(),
                 ),
               );
+
               _postBotThinking();
+
 
               apiService
                   .sendMultipartRequest(
@@ -396,7 +398,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             createdAt: DateTime.now().toUtc(),
           ),
         );
+        var transcript = chat_core.TextMessage(
+          authorId: _user.id,
+          id: DateTime.now().toIso8601String(),
+          text: processedData.transcript,
+          createdAt: DateTime.now().toUtc(),
+        );
         _postBotThinking();
+        _chatService.sendMessage(chatId: widget.chatId, message: transcript);
+
 
         final responseBody = await apiService.sendMultipartRequest(
           text: processedData.transcript,
