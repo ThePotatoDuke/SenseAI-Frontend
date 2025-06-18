@@ -1,6 +1,11 @@
 # SenseAI
-![SenseAI Home Screen]()
-![SenseAI Previous Chats](https://example.com/images/home_screen.png)
+<p float="left">
+  <img src="https://i.imgur.com/aCocyGt.png" alt="SenseAI Home Screen" width="200" style="margin-right:10px;"/>
+  <img src="https://i.imgur.com/0eJo6ww.png" alt="SenseAI Previous Chats" width="200" style="margin-right:10px;"/>
+  <img src="https://i.imgur.com/dLJe9rj.png" alt="Chat screen" width="200"/>
+</p>
+
+
 
 
 **SenseAI** is a cross-platform Flutter application focused on promoting mental wellness and mindfulness using AI-powered guidance and interactive features.
