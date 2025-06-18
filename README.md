@@ -1,4 +1,7 @@
 # SenseAI
+![SenseAI Home Screen]()
+![SenseAI Previous Chats](https://example.com/images/home_screen.png)
+
 
 **SenseAI** is a cross-platform Flutter application focused on promoting mental wellness and mindfulness using AI-powered guidance and interactive features.
 
