@@ -1,0 +1,223 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_chat_core/flutter_chat_core.dart' as chat_core;
+import 'package:path/path.dart' as p;
+
+import '../presentation/pages/chat_page.dart';
+
+class ChatService {
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+
+  /// Create a new chat session with optional metadata
+  Future<void> createChatSession(String chatId) async {
+    final uid = _auth.currentUser!.uid;
+    final chatDoc = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId);
+
+    await chatDoc.set({
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastMessage': 'Chat started',
+    });
+  }
+
+  /// Save a message under a specific session
+  Future<void> sendMessage({
+    required String chatId,
+    required chat_core.TextMessage message,
+    String? voiceAnalysis,
+    String? textAnalysis,
+    String? videoAnalysis,
+  }) async {
+    final uid = _auth.currentUser!.uid;
+    final messageRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(message.id);
+
+    // Build message data map
+    final messageData = {
+      'sender': message.authorId,
+      'type': 'text',
+      'content': message.text,
+      'timestamp': FieldValue.serverTimestamp(),
+      'voiceAnalysis': voiceAnalysis ?? '-',
+      'textAnalysis': textAnalysis ?? '-',
+      'videoAnalysis': videoAnalysis ?? '-',
+    };
+
+    await messageRef.set(messageData);
+
+    // Update last message summary in chat doc
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .update({
+      'lastMessage': message.text,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteChatSession(String chatId) async {
+    final uid = _auth.currentUser!.uid;
+
+    final chatRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId);
+
+    // Delete messages first (if needed)
+    final messages = await chatRef.collection('messages').get();
+    for (final doc in messages.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete chat session
+    await chatRef.delete();
+  }
+
+  Future<void> sendFileMessageLocalOnly({
+    required String filePath,
+    required String chatId,
+    required String fileType, // "video" or "audio"
+  }) async {
+    final uid = _auth.currentUser!.uid;
+
+    final messageId = randomString();
+    final messageRef = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc(messageId);
+
+    await messageRef.set({
+      'sender': uid,
+      'type': fileType, // "video" or "audio"
+      'content': filePath, // local file path
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .set({
+      'lastMessage': fileType == 'video'
+          ? '📹 Video message'
+          : '🎵 Audio message',
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+
+
+  Future<List<chat_core.Message>> getMessagesOnce(String chatId) async {
+    final uid = _auth.currentUser!.uid;
+
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      final type = data['type'];
+      final sender = data['sender'];
+      final createdAt = (data['timestamp'] as Timestamp?)?.toDate();
+
+      if (type == 'text') {
+        return chat_core.TextMessage(
+          authorId: sender,
+          createdAt: createdAt ?? DateTime.now(),
+          id: doc.id,
+          text: data['content'] ?? '',
+        );
+      } else if (type == 'video' || type == 'audio') {
+        final mimeType = type == 'video' ? 'video/mp4' : 'audio/wav';
+        return chat_core.FileMessage(
+          authorId: sender,
+          createdAt: createdAt ?? DateTime.now(),
+          id: doc.id,
+          name: p.basename(data['content'] ?? ''),
+          size: 0,
+          source: data['content'] ?? '',
+          mimeType: mimeType,
+        );
+      } else {
+        return chat_core.TextMessage(
+          authorId: sender,
+          createdAt: createdAt ?? DateTime.now(),
+          id: doc.id,
+          text: '[Unsupported message type]',
+        );
+      }
+    }).toList();
+  }
+
+
+
+  Stream<List<Map<String, dynamic>>> getChatSessions() async* {
+    final uid = _auth.currentUser!.uid;
+
+    final chatSnapshotsStream = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('chats')
+        .orderBy('lastUpdated', descending: true) // changed here
+        .snapshots();
+
+    await for (final chatSnapshot in chatSnapshotsStream) {
+      final chatDocs = chatSnapshot.docs;
+
+      final futures = chatDocs.map((chatDoc) async {
+        final chatId = chatDoc.id;
+        final chatData = chatDoc.data();
+
+        final lastMessageQuery = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('chats')
+            .doc(chatId)
+            .collection('messages')
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get();
+
+        final lastMessageDoc = lastMessageQuery.docs.isNotEmpty
+            ? lastMessageQuery.docs.first
+            : null;
+
+        final lastMessageData = lastMessageDoc?.data() ?? {};
+
+        return {
+          'chatId': chatId,
+          'lastMessage': chatData['lastMessage'] ?? 'No messages yet',
+          'createdAt': chatData['createdAt'] ?? chatData['lastUpdated'], // fallback
+          'voiceAnalysis': lastMessageData['voiceAnalysis'] ?? '-',
+          'textAnalysis': lastMessageData['textAnalysis'] ?? '-',
+          'videoAnalysis': lastMessageData['videoAnalysis'] ?? '-',
+        };
+      }).toList();
+
+      final results = await Future.wait(futures);
+      yield results;
+    }
+  }
+
+}

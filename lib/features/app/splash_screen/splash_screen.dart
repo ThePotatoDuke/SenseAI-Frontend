@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../user_auth/presentation/pages/login_page.dart';
+import '../../user_auth/presentation/pages/main_screen.dart';
+
 class SplashScreen extends StatefulWidget {
   final Widget? child;
   const SplashScreen({super.key, this.child});
@@ -23,20 +26,21 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              "SenseAI",
-              style: TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-              ),
+            Image.asset(
+              'assets/senseai_logo.jpg', // make sure this path is correct and asset added in pubspec.yaml
+              width: 150,          // adjust size as you want
+              height: 150,
+              fit: BoxFit.contain,
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 24),
+
             CircularProgressIndicator(),
           ],
         ),
@@ -45,18 +49,23 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _checkAuthentication() async {
-    // Delay for a short period to simulate splash screen
     await Future.delayed(Duration(seconds: 2));
 
-    // Check if a user is logged in
     final user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      // Navigate to HomePage if user is logged in
-      Navigator.pushReplacementNamed(context, '/main');
+      // Navigate to MainScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainScreen()),
+      );
     } else {
-      // Navigate to LoginPage if user is not logged in
-      Navigator.pushReplacementNamed(context, '/login');
+      // Navigate to LoginPage
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+      );
     }
   }
+
 }

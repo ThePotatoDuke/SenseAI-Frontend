@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:senseai/features/user_auth/presentation/pages/home_page.dart';
+import 'package:senseai/features/user_auth/presentation/pages/settings_page.dart';
 
 import 'PreviousChats.dart';
 
@@ -17,6 +18,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomePage(),
     PreviousChatsScreen(),
+    const SettingsPage(), // This must exist
   ];
 
   void _onTabTapped(int index) {
@@ -56,8 +58,14 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.chat),
             label: 'Chats',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
       ),
+
+
     );
   }
 }

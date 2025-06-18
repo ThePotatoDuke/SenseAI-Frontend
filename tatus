@@ -1,0 +1,159 @@
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{0}: checkout: moving from main to remove-types
+[33m29ac0d3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{1}: checkout: moving from media to main
+[33m91eeb1d[m[33m ([m[1;32mmedia[m[33m)[m HEAD@{2}: merge origin/media: Merge made by the 'ort' strategy.
+[33m212b4b3[m[33m ([m[1;31morigin/intents[m[33m, [m[1;32mintents[m[33m)[m HEAD@{3}: reset: moving to 212b4b360b8f70c4033d8cafa321e93ad221e137
+[33m05e1336[m HEAD@{4}: reset: moving to 05e13368dd40088f1dd368b183be4a62f72d851d
+[33m212b4b3[m[33m ([m[1;31morigin/intents[m[33m, [m[1;32mintents[m[33m)[m HEAD@{5}: reset: moving to 212b4b360b8f70c4033d8cafa321e93ad221e137
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{6}: checkout: moving from media to media
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{7}: branch: Reset to origin/media
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{8}: checkout: moving from media to media
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{9}: branch: Reset to origin/media
+[33ma1382d9[m HEAD@{10}: checkout: moving from remove-types to media
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{11}: checkout: moving from media to remove-types
+[33ma1382d9[m HEAD@{12}: merge origin/media: Merge made by the 'ort' strategy.
+[33m212b4b3[m[33m ([m[1;31morigin/intents[m[33m, [m[1;32mintents[m[33m)[m HEAD@{13}: reset: moving to 212b4b360b8f70c4033d8cafa321e93ad221e137
+[33m05e1336[m HEAD@{14}: reset: moving to 05e13368dd40088f1dd368b183be4a62f72d851d
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{15}: checkout: moving from remove-types to media
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{16}: checkout: moving from load-messages to remove-types
+[33m5b2b308[m[33m ([m[1;31morigin/load-messages[m[33m, [m[1;32mload-messages[m[33m)[m HEAD@{17}: commit: storage works mostly
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{18}: checkout: moving from media to load-messages
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{19}: checkout: moving from firestore to media
+[33m7167d5c[m[33m ([m[1;31morigin/firestore[m[33m, [m[1;32mfirestore[m[33m)[m HEAD@{20}: checkout: moving from media to firestore
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{21}: checkout: moving from main to media
+[33m29ac0d3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{22}: checkout: moving from media to main
+[33m9e929a6[m[33m ([m[1;36mHEAD -> [m[1;32mremove-types[m[33m, [m[1;31morigin/media[m[33m)[m HEAD@{23}: commit: video uploading
+[33m7167d5c[m[33m ([m[1;31morigin/firestore[m[33m, [m[1;32mfirestore[m[33m)[m HEAD@{24}: Branch: renamed refs/heads/mediaol to refs/heads/media
+[33m7167d5c[m[33m ([m[1;31morigin/firestore[m[33m, [m[1;32mfirestore[m[33m)[m HEAD@{26}: checkout: moving from firestore to mediaol
+[33m7167d5c[m[33m ([m[1;31morigin/firestore[m[33m, [m[1;32mfirestore[m[33m)[m HEAD@{27}: commit: did firestore basics
+[33m4059df9[m[33m ([m[1;31morigin/stt[m[33m, [m[1;32mstt[m[33m)[m HEAD@{28}: checkout: moving from stt to firestore
+[33m4059df9[m[33m ([m[1;31morigin/stt[m[33m, [m[1;32mstt[m[33m)[m HEAD@{29}: commit: dependencies and stuff
+[33m3d4bb14[m HEAD@{30}: checkout: moving from even-more-band to stt
+[33m6e86fb8[m[33m ([m[1;31morigin/more-watch[m[33m, [m[1;32meven-more-band[m[33m)[m HEAD@{31}: checkout: moving from stt to even-more-band
+[33m3d4bb14[m HEAD@{32}: checkout: moving from even-more-band to stt
+[33m6e86fb8[m[33m ([m[1;31morigin/more-watch[m[33m, [m[1;32meven-more-band[m[33m)[m HEAD@{33}: checkout: moving from more-watch to even-more-band
+[33m6e86fb8[m[33m ([m[1;31morigin/more-watch[m[33m, [m[1;32meven-more-band[m[33m)[m HEAD@{34}: commit: going back to mi2
+[33m3d4bb14[m HEAD@{35}: checkout: moving from stt to more-watch
+[33m3d4bb14[m HEAD@{36}: checkout: moving from more-watch to stt
+[33m3d4bb14[m HEAD@{37}: checkout: moving from stt to more-watch
+[33m3d4bb14[m HEAD@{38}: checkout: moving from main to stt
+[33m29ac0d3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{39}: checkout: moving from intents to main
+[33m212b4b3[m[33m ([m[1;31morigin/intents[m[33m, [m[1;32mintents[m[33m)[m HEAD@{40}: checkout: moving from main to intents
+[33m29ac0d3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{41}: checkout: moving from intents to main
+[33m212b4b3[m[33m ([m[1;31morigin/intents[m[33m, [m[1;32mintents[m[33m)[m HEAD@{42}: commit: test commit
+[33m05e1336[m HEAD@{43}: checkout: moving from main to intents
+[33m29ac0d3[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{44}: commit: finished mvp now for real
+[33m4e21d3f[m HEAD@{45}: commit: finished mvp now for real
+[33m4ec0321[m HEAD@{46}: checkout: moving from stt to main
+[33m3d4bb14[m HEAD@{47}: commit: finished mvp now for real
+[33m538e6d0[m HEAD@{48}: commit: finished mvp
+[33m508d352[m HEAD@{49}: commit: refactored ugly code again
+[33m6d60700[m HEAD@{50}: commit: refactored ugly code
+[33m4754179[m HEAD@{51}: commit: speech to text works now
+[33m4ec0321[m HEAD@{52}: checkout: moving from main to stt
+[33m4ec0321[m HEAD@{53}: checkout: moving from tts to main
+[33m4ec0321[m HEAD@{54}: checkout: moving from main to tts
+[33m4ec0321[m HEAD@{55}: merge origin/main: Fast-forward
+[33md22ff64[m HEAD@{56}: checkout: moving from intents to main
+[33m05e1336[m HEAD@{57}: commit: some stuff happened i guess
+[33m3c6e090[m HEAD@{58}: checkout: moving from stress to intents
+[33m3c6e090[m HEAD@{59}: commit: getting stress levels works
+[33md22ff64[m HEAD@{60}: checkout: moving from main to stress
+[33md22ff64[m HEAD@{61}: pull origin main: Fast-forward
+[33m39dcf67[m HEAD@{62}: checkout: moving from cleanup to main
+[33m5d196ae[m[33m ([m[1;31morigin/cleanup[m[33m)[m HEAD@{63}: checkout: moving from main to cleanup
+[33m39dcf67[m HEAD@{64}: checkout: moving from cleanup to main
+[33m5d196ae[m[33m ([m[1;31morigin/cleanup[m[33m)[m HEAD@{65}: commit: Untrack .cxx directory
+[33m91e6ffe[m HEAD@{66}: commit (merge): Merge remote-tracking branch 'origin/main' into cleanup
+[33m7f99865[m HEAD@{67}: checkout: moving from cleanup to cleanup
+[33m7f99865[m HEAD@{68}: branch: Reset to origin/cleanup
+[33m7f99865[m HEAD@{69}: checkout: moving from main to cleanup
+[33m39dcf67[m HEAD@{70}: reset: moving to HEAD
+[33m39dcf67[m HEAD@{71}: commit: Remove .cxx from Git tracking and add to .gitignore
+[33mec72448[m HEAD@{72}: reset: moving to HEAD
+[33mec72448[m HEAD@{73}: pull origin main: Fast-forward
+[33m036549e[m HEAD@{74}: checkout: moving from main to main
+[33m036549e[m HEAD@{75}: checkout: moving from cleanup to main
+[33m7f99865[m HEAD@{76}: commit: added new dependencies
+[33mb2c1e87[m HEAD@{77}: checkout: moving from voice to cleanup
+[33m2bdbd90[m HEAD@{78}: checkout: moving from cleanup to voice
+[33mb2c1e87[m HEAD@{79}: checkout: moving from voice to cleanup
+[33m2bdbd90[m HEAD@{80}: checkout: moving from cleanup to voice
+[33mb2c1e87[m HEAD@{81}: checkout: moving from stress to cleanup
+[33m29ca3d4[m[33m ([m[1;31morigin/stress[m[33m)[m HEAD@{82}: commit: added new dependencies
+[33m084e23b[m HEAD@{83}: checkout: moving from cleanup to stress
+[33mb2c1e87[m HEAD@{84}: checkout: moving from stress to cleanup
+[33m084e23b[m HEAD@{85}: commit: added new dependencies
+[33m723a278[m HEAD@{86}: checkout: moving from main to stress
+[33m036549e[m HEAD@{87}: checkout: moving from stress to main
+[33m723a278[m HEAD@{88}: commit: added new dependencies
+[33m036549e[m HEAD@{89}: checkout: moving from cleanup to stress
+[33mb2c1e87[m HEAD@{90}: commit: all at once works now
+[33m4616b10[m HEAD@{91}: commit: all at once works now
+[33ma1d80a1[m HEAD@{92}: commit: separating the code
+[33mba0cef6[m HEAD@{93}: checkout: moving from main to cleanup
+[33mba0cef6[m HEAD@{94}: checkout: moving from voice to main
+[33m2bdbd90[m HEAD@{95}: commit: sumthings appeared
+[33mba0cef6[m HEAD@{96}: checkout: moving from main to voice
+[33mba0cef6[m HEAD@{97}: merge origin/main: Fast-forward
+[33mee82957[m HEAD@{98}: commit: tried to commit after hard revert to branch
+[33m60fc89d[m HEAD@{99}: reset: moving to 60fc89dd439e948e6028d579356d72459e662068
+[33m60fc89d[m HEAD@{100}: rebase (finish): returning to refs/heads/nosave
+[33m60fc89d[m HEAD@{101}: rebase (pick): sending images worksssssss
+[33m7ae1ca9[m HEAD@{102}: rebase (pick): test 126 files
+[33mbad3d72[m HEAD@{103}: rebase (pick): temp
+[33mf2877d5[m HEAD@{104}: rebase (pick): sending images works
+[33mde817fc[m HEAD@{105}: rebase (pick): image is supposedly compresssed now
+[33m45a0a40[m HEAD@{106}: rebase (pick): test is complete for text and video
+[33m52128d8[m HEAD@{107}: rebase (pick): code now sends http request to placeholderURI
+[33mf06d8f9[m HEAD@{108}: rebase (pick): ffmpeg is working now
+[33m037dfa1[m HEAD@{109}: rebase (continue): added ffmpeg kit but it is not working because v1 embedding is deprecated
+[33m3990c57[m HEAD@{110}: rebase (pick): videos are stored in documents/movies and audio is stored in documents/audio
+[33m38a2d26[m HEAD@{111}: rebase (pick): some gradle files and such
+[33mfc4075f[m HEAD@{112}: rebase (pick): added a comment for hosted files on message tap
+[33me7b412b[m HEAD@{113}: rebase (pick): removed open filex code
+[33me1ec8ea[m HEAD@{114}: rebase (pick): fixed opening files
+[33m3f53a3b[m HEAD@{115}: rebase (pick): used flutter pub get and updated files
+[33m0f196f5[m HEAD@{116}: rebase (continue): applying plugins is replaced with newer version, gradle wrapper distribution url updated
+[33m53840db[m HEAD@{117}: rebase (pick): finished video recording and cleaned ui
+[33mfaf4e21[m HEAD@{118}: rebase (pick): video can be seen in the chat screen
+[33m0240b43[m HEAD@{119}: rebase (pick): video screen basics
+[33m46dd5e3[m HEAD@{120}: rebase (continue): finished camera functrionality
+[33m7cd549a[m HEAD@{121}: rebase (continue): sending images works
+[33mddcaaa1[m HEAD@{122}: rebase (start): checkout origin/main
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{123}: checkout: moving from nosave to nosave
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{124}: branch: Reset to origin/nosave
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{125}: checkout: moving from backup to nosave
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{126}: checkout: moving from nosave to backup
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{127}: rebase (abort): returning to refs/heads/nosave
+[33mddcaaa1[m HEAD@{128}: rebase (start): checkout origin/main
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{129}: checkout: moving from nosave to nosave
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{130}: branch: Reset to origin/nosave
+[33m7bac774[m[33m ([m[1;31morigin/nosave[m[33m)[m HEAD@{131}: commit: sending images worksssssss
+[33m936930a[m HEAD@{132}: checkout: moving from ffmpegunofficial to ffmpegunofficial
+[33m936930a[m HEAD@{133}: branch: Reset to origin/ffmpegunofficial
+[33m936930a[m HEAD@{134}: merge origin/ffmpegunofficial: Fast-forward
+[33me5e204d[m HEAD@{135}: commit: test is complete for text and video
+[33m5f3d3c5[m HEAD@{136}: commit: code now sends http request to placeholderURI
+[33m6976b49[m HEAD@{137}: commit: ffmpeg is working now
+[33m4342427[m HEAD@{138}: checkout: moving from FFMpeg to ffmpegunofficial
+[33m4342427[m HEAD@{139}: commit: added ffmpeg kit but it is not working because v1 embedding is deprecated
+[33mf7fd1d3[m HEAD@{140}: commit: videos are stored in documents/movies and audio is stored in documents/audio
+[33med6a5ca[m HEAD@{141}: checkout: moving from FFMpeg to return-video
+[33med6a5ca[m HEAD@{142}: checkout: moving from return-video to FFMpeg
+[33med6a5ca[m HEAD@{143}: commit: some gradle files and such
+[33m670961f[m HEAD@{144}: checkout: moving from main to return-video
+[33mddcaaa1[m HEAD@{145}: merge origin/main: Merge made by the 'ort' strategy.
+[33mf37a89f[m HEAD@{146}: checkout: moving from return-video to main
+[33m670961f[m HEAD@{147}: commit: added a comment for hosted files on message tap
+[33mde3b3e4[m HEAD@{148}: commit: removed open filex code
+[33m1ea13fa[m HEAD@{149}: commit: fixed opening files
+[33mc1866c7[m HEAD@{150}: commit: used flutter pub get and updated files
+[33m75778f4[m HEAD@{151}: commit: applying plugins is replaced with newer version, gradle wrapper distribution url updated
+[33m81cb6b8[m HEAD@{152}: checkout: moving from return-video to Video-Recording
+[33m01ca159[m HEAD@{153}: checkout: moving from ffmpeg to return-video
+[33m01ca159[m HEAD@{154}: checkout: moving from ffmpeg to ffmpeg
+[33m01ca159[m HEAD@{155}: checkout: moving from return-video to ffmpeg
+[33m01ca159[m HEAD@{156}: commit: finished video recording and cleaned ui
+[33m2394a7a[m HEAD@{157}: commit: video can be seen in the chat screen
+[33m81cb6b8[m HEAD@{158}: checkout: moving from Video-Recording to return-video
+[33m81cb6b8[m HEAD@{159}: commit: video screen basics
