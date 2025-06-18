@@ -58,7 +58,6 @@ Edit
 
 You can override the backend URL using `--dart-define`:
 
-```bash
 flutter run --dart-define=BACKEND_URL=http://192.168.1.XX:5000
 📦 Building the APK with a Custom Backend
 If you're building a release version:
@@ -76,7 +75,7 @@ If you are using the default build or a shared APK without setting up the backen
 
 
 
-🛠 Tech Stack
+## 🛠 Tech Stack
 Flutter – UI Framework
 
 Dart – Programming Language
